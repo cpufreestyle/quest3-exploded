@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Import Test</title>
+</head>
+<body>
+  <script type="module">
+    async function test() {
+      try {
+        const mod = await import('./vendor/GLTFLoader.js');
+        console.log('GLTFLoader loaded:', mod);
+      } catch (err) {
+        console.error('Error:', err);
+      }
+    }
+    test();
+  </script>
+</body>
+</html>
