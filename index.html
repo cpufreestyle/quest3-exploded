@@ -9,7 +9,12 @@
 </head>
 <body>
   <div id="canvas-container">
-    <div id="loading" class="loading">加载 3D 场景中...</div>
+    <div id="loading" class="loading">
+      <div class="loading-spinner">
+        <div class="spinner-ring"></div>
+        <div class="spinner-text">加载 3D 场景中...</div>
+      </div>
+    </div>
     <div id="error" class="error hidden"></div>
   </div>
 
@@ -60,8 +65,11 @@
   </script>
 
   <div class="ui-overlay">
-    <h1>🎮 Meta Quest 3</h1>
-    <p class="subtitle">交互式 3D 拆解教学</p>
+    <div class="ui-header">
+      <h1>🎮 Meta Quest 3</h1>
+      <p class="subtitle">交互式 3D 拆解教学</p>
+      <button id="theme-toggle" class="theme-toggle" title="切换主题">🌙</button>
+    </div>
 
     <!-- ===== 自定义模型上传（最显眼位置）===== -->
     <div class="upload-section featured">

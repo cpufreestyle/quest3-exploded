@@ -30,6 +30,32 @@ const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x0a0c12);
 scene.fog = new THREE.Fog(0x0a0c12, 10, 40);
 
+// 添加背景网格（装饰性）
+const gridHelper = new THREE.GridHelper(30, 30, 0x1a1b23, 0x1a1b23);
+gridHelper.position.y = -1.5;
+gridHelper.material.opacity = 0.3;
+gridHelper.material.transparent = true;
+scene.add(gridHelper);
+
+// 添加环境粒子（增强空间感）
+const particlesGeometry = new THREE.BufferGeometry();
+const particlesCount = 500;
+const posArray = new Float32Array(particlesCount * 3);
+
+for(let i = 0; i < particlesCount * 3; i++) {
+  posArray[i] = (Math.random() - 0.5) * 30;
+}
+
+particlesGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+const particlesMaterial = new THREE.PointsMaterial({
+  size: 0.02,
+  color: 0x4a9eff,
+  transparent: true,
+  opacity: 0.4,
+});
+const particlesMesh = new THREE.Points(particlesGeometry, particlesMaterial);
+scene.add(particlesMesh);
+
 const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
 camera.position.set(4, 2.5, 5);
 
@@ -1270,6 +1296,13 @@ window.addEventListener('resize', () => {
 function animate(now) {
   requestAnimationFrame(animate);
   updateExplodedView(now);
+
+  // 粒子动画（缓慢旋转）
+  if (particlesMesh) {
+    particlesMesh.rotation.y = now * 0.00005;
+    particlesMesh.rotation.x = now * 0.00003;
+  }
+
   controls.update();
   renderer.render(scene, camera);
 }
@@ -1385,3 +1418,55 @@ function setupUpload() {
 
   console.log('文件上传功能已启用');
 }
+
+// ===== 主题切换 =====
+const themeToggle = document.getElementById('theme-toggle');
+const uiOverlay = document.querySelector('.ui-overlay');
+
+if (themeToggle && uiOverlay) {
+  // 检查本地存储的主题设置
+  const savedTheme = localStorage.getItem('quest3-theme');
+  if (savedTheme === 'light') {
+    uiOverlay.classList.add('light-theme');
+    themeToggle.textContent = '☀️';
+  }
+
+  themeToggle.addEventListener('click', () => {
+    uiOverlay.classList.toggle('light-theme');
+    const isLight = uiOverlay.classList.contains('light-theme');
+
+    // 保存主题设置
+    localStorage.setItem('quest3-theme', isLight ? 'light' : 'dark');
+
+    // 更新按钮图标
+    themeToggle.textContent = isLight ? '☀️' : '🌙';
+
+    // 添加切换动画
+    themeToggle.style.transform = 'rotate(360deg) scale(1.2)';
+    setTimeout(() => {
+      themeToggle.style.transform = '';
+    }, 300);
+  });
+}
+
+// ===== 步骤描述淡入动画 =====
+let lastStepDesc = '';
+function updateStepDescAnimation() {
+  if (!stepDescEl) return;
+
+  const currentDesc = stepDescEl.textContent;
+  if (currentDesc !== lastStepDesc) {
+    stepDescEl.style.animation = 'none';
+    // 触发重排
+    void stepDescEl.offsetHeight;
+    stepDescEl.style.animation = 'fadeInUp 0.5s ease-out';
+    lastStepDesc = currentDesc;
+  }
+}
+
+// 在 updateStepUI 的最后调用动画
+const originalUpdateStepUI = updateStepUI;
+updateStepUI = function() {
+  originalUpdateStepUI();
+  updateStepDescAnimation();
+};
