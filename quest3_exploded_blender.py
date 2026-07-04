@@ -48,7 +48,9 @@ def create_materials():
     # 白色前面板（亚光塑料）
     mat = bpy.data.materials.new(name="FrontPlate")
     mat.use_nodes = True
-    bsdf = mat.node_tree.nodes["Principled BSDF"]
+    bsdf = mat.node_tree.nodes.get("Principled BSDF")
+    if not bsdf:
+        bsdf = mat.node_tree.nodes.new(type='ShaderNodeBsdfPrincipled')
     bsdf.inputs['Base Color'].default_value = (0.97, 0.97, 0.97, 1.0)
     bsdf.inputs['Roughness'].default_value = 0.35
     bsdf.inputs['Metallic'].default_value = 0.02
@@ -61,7 +63,9 @@ def create_materials():
     # 黑色主机身（哑光塑料）
     mat = bpy.data.materials.new(name="Body")
     mat.use_nodes = True
-    bsdf = mat.node_tree.nodes["Principled BSDF"]
+    bsdf = mat.node_tree.nodes.get("Principled BSDF")
+    if not bsdf:
+        bsdf = mat.node_tree.nodes.new(type='ShaderNodeBsdfPrincipled')
     bsdf.inputs['Base Color'].default_value = (0.12, 0.12, 0.13, 1.0)
     bsdf.inputs['Roughness'].default_value = 0.6
     bsdf.inputs['Metallic'].default_value = 0.08
@@ -70,7 +74,9 @@ def create_materials():
     # 深空蓝透镜外环（金属质感）
     mat = bpy.data.materials.new(name="LensBarrel")
     mat.use_nodes = True
-    bsdf = mat.node_tree.nodes["Principled BSDF"]
+    bsdf = mat.node_tree.nodes.get("Principled BSDF")
+    if not bsdf:
+        bsdf = mat.node_tree.nodes.new(type='ShaderNodeBsdfPrincipled')
     bsdf.inputs['Base Color'].default_value = (0.1, 0.18, 0.29, 1.0)
     bsdf.inputs['Roughness'].default_value = 0.2
     bsdf.inputs['Metallic'].default_value = 0.55
@@ -82,7 +88,9 @@ def create_materials():
     # 透镜玻璃（透明蓝色）
     mat = bpy.data.materials.new(name="LensGlass")
     mat.use_nodes = True
-    bsdf = mat.node_tree.nodes["Principled BSDF"]
+    bsdf = mat.node_tree.nodes.get("Principled BSDF")
+    if not bsdf:
+        bsdf = mat.node_tree.nodes.new(type='ShaderNodeBsdfPrincipled')
     bsdf.inputs['Base Color'].default_value = (0.6, 0.8, 1.0, 1.0)
     bsdf.inputs['Roughness'].default_value = 0.03
     bsdf.inputs['Metallic'].default_value = 0.0
@@ -94,7 +102,9 @@ def create_materials():
     # 摄像头（深色玻璃纤维）
     mat = bpy.data.materials.new(name="Camera")
     mat.use_nodes = True
-    bsdf = mat.node_tree.nodes["Principled BSDF"]
+    bsdf = mat.node_tree.nodes.get("Principled BSDF")
+    if not bsdf:
+        bsdf = mat.node_tree.nodes.new(type='ShaderNodeBsdfPrincipled')
     bsdf.inputs['Base Color'].default_value = (0.05, 0.05, 0.05, 1.0)
     bsdf.inputs['Roughness'].default_value = 0.25
     bsdf.inputs['Metallic'].default_value = 0.65
@@ -103,16 +113,21 @@ def create_materials():
     # 传感器镜头
     mat = bpy.data.materials.new(name="Sensor")
     mat.use_nodes = True
-    bsdf = mat.node_tree.nodes["Principled BSDF"]
+    bsdf = mat.node_tree.nodes.get("Principled BSDF")
+    if not bsdf:
+        bsdf = mat.node_tree.nodes.new(type='ShaderNodeBsdfPrincipled')
     bsdf.inputs['Base Color'].default_value = (0.04, 0.1, 0.2, 1.0)
-    bsdf.inputs['Emission'].default_value = (0.04, 0.1, 0.2, 1.0)
-    bsdf.inputs['Emission Strength'].default_value = 0.5
+    if 'Emission' in bsdf.inputs:
+        bsdf.inputs['Emission'].default_value = (0.04, 0.1, 0.2, 1.0)
+        bsdf.inputs['Emission Strength'].default_value = 0.5
     materials['sensor'] = mat
 
     # 头带臂（深灰色塑料）
     mat = bpy.data.materials.new(name="StrapArm")
     mat.use_nodes = True
-    bsdf = mat.node_tree.nodes["Principled BSDF"]
+    bsdf = mat.node_tree.nodes.get("Principled BSDF")
+    if not bsdf:
+        bsdf = mat.node_tree.nodes.new(type='ShaderNodeBsdfPrincipled')
     bsdf.inputs['Base Color'].default_value = (0.18, 0.18, 0.19, 1.0)
     bsdf.inputs['Roughness'].default_value = 0.7
     bsdf.inputs['Metallic'].default_value = 0.12
@@ -121,7 +136,9 @@ def create_materials():
     # 记忆海绵（深灰色，高粗糙度）
     mat = bpy.data.materials.new(name="Foam")
     mat.use_nodes = True
-    bsdf = mat.node_tree.nodes["Principled BSDF"]
+    bsdf = mat.node_tree.nodes.get("Principled BSDF")
+    if not bsdf:
+        bsdf = mat.node_tree.nodes.new(type='ShaderNodeBsdfPrincipled')
     bsdf.inputs['Base Color'].default_value = (0.1, 0.1, 0.11, 1.0)
     bsdf.inputs['Roughness'].default_value = 0.95
     bsdf.inputs['Metallic'].default_value = 0.0
@@ -130,7 +147,9 @@ def create_materials():
     # 主板 PCB（深绿色）
     mat = bpy.data.materials.new(name="PCB")
     mat.use_nodes = True
-    bsdf = mat.node_tree.nodes["Principled BSDF"]
+    bsdf = mat.node_tree.nodes.get("Principled BSDF")
+    if not bsdf:
+        bsdf = mat.node_tree.nodes.new(type='ShaderNodeBsdfPrincipled')
     bsdf.inputs['Base Color'].default_value = (0.04, 0.25, 0.13, 1.0)
     bsdf.inputs['Roughness'].default_value = 0.75
     bsdf.inputs['Metallic'].default_value = 0.05
@@ -451,12 +470,17 @@ def create_quest3_model(materials: dict) -> List[bpy.types.Object]:
     strap = bpy.data.objects.new('头带', curve)
     bpy.context.collection.objects.link(strap)
 
-    # 添加填充几何体修改器
-    fill = strap.modifiers.new(name="Fill", type='GeometryNodes')
+    # 添加填充几何体修改器（兼容新旧版本）
+    try:
+        fill = strap.modifiers.new(name="Fill", type='NODES')
+    except TypeError:
+        # 旧版本使用 'GeometryNodes'
+        fill = strap.modifiers.new(name="Fill", type='GeometryNodes')
     # 简单起见，使用默认设置
 
     strap['home_pos'] = (0, 0, 0)
     strap['explode_pos'] = (0, 0.9, -0.8)
+    strap['part_name'] = "头带"
 
     if materials['strapArm']:
         strap.data.materials.append(materials['strapArm'])
@@ -499,7 +523,7 @@ def setup_exploded_view(parts: List[bpy.types.Object], frame_start: int = 1, fra
         part.location = explode_pos
         part.keyframe_insert(data_path="location", frame=frame_end)
 
-        print(f"  {i+1:2d}/15 {part['part_name']:12s} : "
+        print(f"  {i+1:2d}/15 {part.name:12s} : "
               f"{str(home_pos):25s} → {str(explode_pos)}")
 
     print(f"\n✅ 爆炸动画设置完成（帧 {frame_start} - {frame_end}）\n")
@@ -534,10 +558,14 @@ def setup_rotation_animation(parts: List[bpy.types.Object],
     pivot.rotation_euler = (0, 0, math.radians(360))
     pivot.keyframe_insert(data_path="rotation_euler", frame=frame_end)
 
-    # 设置插值为线性
-    for fcurve in pivot.animation_data.action.fcurves:
-        for keyframe in fcurve.keyframe_points:
-            keyframe.interpolation = 'LINEAR'
+    # 设置插值为线性（兼容不同 Blender 版本）
+    try:
+        for fcurve in pivot.animation_data.action.fcurves:
+            for keyframe in fcurve.keyframe_points:
+                keyframe.interpolation = 'LINEAR'
+    except (AttributeError, TypeError):
+        # 某些版本 API 不同，跳过插值设置
+        pass
 
     print(f"✅ 旋转动画设置完成（{frame_start} - {frame_end} 帧，360°）\n")
 
