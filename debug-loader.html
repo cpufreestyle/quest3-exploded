@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GLTFLoader 调试</title>
+  <style>
+    body {
+      font-family: monospace;
+      padding: 20px;
+      background: #1a1a2e;
+      color: #e6e6e6;
+    }
+    .log {
+      margin: 5px 0;
+      padding: 8px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 4px;
+    }
+    .success { color: #4caf50; }
+    .error { color: #ff6b6b; }
+    .warn { color: #ffc107; }
+    button {
+      background: #4a9eff;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 6px;
+      cursor: pointer;
+      margin: 10px 5px;
+      font-size: 14px;
+    }
+    button:hover { background: #3a8eef; }
+  </style>
+</head>
+<body>
+  <h1>🐛 GLTFLoader 调试</h1>
+
+  <button id="test1">测试 1: 检查 fetch</button>
+  <button id="test2">测试 2: 加载 GLTFLoader</button>
+  <button id="test3">测试 3: 解析 GLB (parse)</button>
+  <button id="test4">测试 4: 完整流程</button>
+
+  <div id="logs"></div>
+
+  <script type="module">
+    const logs = document.getElementById('logs');
+
+    function log(msg, type = '') {
+      const div = document.createElement('div');
+      div.className = `log ${type}`;
+      div.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+      logs.appendChild(div);
+      console.log(msg);
+    }
+
+    // 动态导入 GLTFLoader
+    let GLTFLoader = null;
+    async function loadGLTFLoader() {
+      if (!GLTFLoader) {
+        log('正在 import GLTFLoader...');
+        const module = await import('./vendor/GLTFLoader.js?v=1783166735');
+        GLTFLoader = module.GLTFLoader;
+        log(`✅ GLTFLoader 已加载: ${GLTFLoader.name}`, 'success');
+      }
+      return GLTFLoader;
+    }
+
+    document.getElementById('test1').addEventListener('click', async () => {
+      log('\n=== 测试 1: fetch Quest3.glb ===', 'warn');
+      try {
+        const response = await fetch('./models/Quest3.glb');
+        log(`状态: ${response.status} ${response.statusText}`);
+
+        if (!response.ok) {
+          log(`❌ HTTP 错误!`, 'error');
+          return;
+        }
+
+        const buffer = await response.arrayBuffer();
+        log(`✅ 下载成功: ${(buffer.byteLength / 1024 / 1024).toFixed(2)} MB`, 'success');
+        log(`   Buffer 类型: ${buffer.constructor.name}`);
+        log(`   Buffer 长度: ${buffer.byteLength} bytes`);
+      } catch (err) {
+        log(`❌ 错误: ${err.message}`, 'error');
+        console.error(err);
+      }
+    });
+
+    document.getElementById('test2').addEventListener('click', async () => {
+      log('\n=== 测试 2: 加载 GLTFLoader ===', 'warn');
+      try {
+        const LoaderClass = await loadGLTFLoader();
+        log(`✅ 加载器类: ${LoaderClass.name}`, 'success');
+        log(`   原型方法: ${Object.getOwnPropertyNames(LoaderClass.prototype).join(', ')}`);
+
+        // 检查 parse 方法
+        if (typeof LoaderClass.prototype.parse === 'function') {
+          log('✅ parse 方法存在', 'success');
+        } else {
+          log('❌ parse 方法不存在!', 'error');
+        }
+
+        // 检查 load 方法
+        if (typeof LoaderClass.prototype.load === 'function') {
+          log('✅ load 方法存在', 'success');
+        } else {
+          log('⚠️ load 方法不存在 (这正常，parse 是主要方法)', 'warn');
+        }
+      } catch (err) {
+        log(`❌ 错误: ${err.message}`, 'error');
+        console.error(err);
+      }
+    });
+
+    document.getElementById('test3').addEventListener('click', async () => {
+      log('\n=== 测试 3: 解析 GLB (parse) ===', 'warn');
+      try {
+        // 先下载
+        const response = await fetch('./models/Quest3.glb');
+        const arrayBuffer = await response.arrayBuffer();
+        log(`✅ 文件已下载: ${(arrayBuffer.byteLength / 1024 / 1024).toFixed(2)} MB`);
+
+        // 加载解析器
+        const LoaderClass = await loadGLTFLoader();
+      const loader = new LoaderClass();
+        log('✅ GLTFLoader 已就绪');
+
+        // 解析
+        log('开始解析...');
+        const startTime = Date.now();
+
+        const gltf = await new Promise((resolve, reject) => {
+          // 30秒超时
+          const timeout = setTimeout(() => {
+            reject(new Error('解析超时！'));
+          }, 30000);
+
+          try {
+            loader.parse(arrayBuffer, '', (result) => {
+              clearTimeout(timeout);
+              resolve(result);
+            }, (err) => {
+              clearTimeout(timeout);
+              reject(new Error('parse callback error: ' + (err?.message || String(err))));
+            });
+          } catch (err) {
+            clearTimeout(timeout);
+            reject(err);
+          }
+        });
+
+        const duration = Date.now() - startTime;
+        log(`✅ 解析成功! 耗时: ${duration}ms`, 'success');
+        log(`   场景: ${gltf.scene.name || '未命名'}`);
+        log(`   子对象数: ${gltf.scene.children.length}`);
+
+        // 统计 mesh
+        let meshCount = 0;
+        gltf.scene.traverse((child) => {
+          if (child.isMesh) meshCount++;
+        });
+        log(`   网格数量: ${meshCount}`);
+
+      } catch (err) {
+        log(`❌ 错误: ${err.message}`, 'error');
+        log(`   类型: ${err.constructor.name}`, 'error');
+        console.error(err);
+      }
+    });
+
+    document.getElementById('test4').addEventListener('click', async () => {
+      log('\n=== 测试 4: 完整流程对比 ===', 'warn');
+      try {
+        // 1. fetch
+        log('步骤 1: fetch...');
+        const response = await fetch('./models/Quest3.glb');
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const arrayBuffer = await response.arrayBuffer();
+        log(`✅ 下载: ${(arrayBuffer.byteLength / 1024 / 1024).toFixed(2)} MB`);
+
+        // 2. parse
+        log('步骤 2: parse...');
+        const LoaderClass = await loadGLTFLoader();
+      const loader = new LoaderClass();
+        const gltf = await new Promise((resolve, reject) => {
+          loader.parse(arrayBuffer, '', resolve, reject);
+        });
+        log('✅ 解析成功');
+
+        // 3. 与 view-model.html 对比（它也使用 parse）
+        log('\n对比 view-model.html 的实现:');
+        log('两者都使用 loader.parse(arrayBuffer, ...)');
+        log('关键区别可能在错误处理或 scene 遍历方式');
+
+        log('\n✅ 完整流程测试通过！', 'success');
+
+      } catch (err) {
+        log(`\n❌ 失败: ${err.message}`, 'error');
+        console.error(err);
+      }
+    });
+
+    // 自动运行测试 4
+    setTimeout(() => {
+      log('页面加载完成，自动运行完整流程测试...\n');
+      document.getElementById('test4').click();
+    }, 1000);
+  </script>
+</body>
+</html>

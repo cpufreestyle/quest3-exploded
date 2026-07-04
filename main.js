@@ -77,6 +77,123 @@ controls.autoRotate = true;
 controls.autoRotateSpeed = 1.2;
 controls.target.set(0, 0.15, 0);
 
+// ===== 自动适配相机到模型 =====
+function fitCameraToModel(modelGroup, smooth = true) {
+  // 计算包围盒
+  const box = new THREE.Box3().setFromObject(modelGroup);
+  const center = box.getCenter(new THREE.Vector3());
+  const size = new THREE.Vector3();
+  box.getSize(size);
+
+  // 计算最大尺寸
+  const maxDim = Math.max(size.x, size.y, size.z);
+
+  // 计算合适的相机距离（根据模型大小）
+  const fov = camera.fov * (Math.PI / 180);
+  let cameraDistance = Math.abs(maxDim / Math.sin(fov / 2)) * 1.5;
+
+  // 设置最小/最大距离限制
+  cameraDistance = Math.max(0.8, Math.min(cameraDistance, 20));
+
+  // 设置相机目标位置
+  const targetPos = new THREE.Vector3(center.x, center.y + size.y * 0.3, center.z);
+  controls.target.copy(targetPos);
+
+  // 计算新的相机位置（保持当前角度）
+  const direction = new THREE.Vector3().subVectors(camera.position, controls.target).normalize();
+  const newCameraPos = targetPos.clone().add(direction.multiplyScalar(cameraDistance));
+
+  if (smooth) {
+    // 平滑过渡
+    const startPos = camera.position.clone();
+    const startTarget = controls.target.clone();
+    let progress = 0;
+
+    function animateCamera() {
+      progress += 0.03;
+      if (progress >= 1) {
+        camera.position.copy(newCameraPos);
+        controls.target.copy(targetPos);
+        return;
+      }
+
+      // 使用缓动函数
+      const easeProgress = 1 - Math.pow(1 - progress, 3);
+      camera.position.lerpVectors(startPos, newCameraPos, easeProgress);
+      controls.target.lerpVectors(startTarget, targetPos, easeProgress);
+
+      requestAnimationFrame(animateCamera);
+    }
+    animateCamera();
+  } else {
+    camera.position.copy(newCameraPos);
+    controls.target.copy(targetPos);
+  }
+
+  console.log('📐 相机适配:', {
+    center: `(${center.x.toFixed(2)}, ${center.y.toFixed(2)}, ${center.z.toFixed(2)})`,
+    size: `(${size.x.toFixed(2)}, ${size.y.toFixed(2)}, ${size.z.toFixed(2)})`,
+    maxDim: maxDim.toFixed(2),
+    cameraDistance: cameraDistance.toFixed(2)
+  });
+}
+
+// ===== 智能爆炸距离计算 =====
+function calculateSmartExplodeDist(modelGroup, explodeDir) {
+  // 1. 获取当前模型包围盒
+  const box = new THREE.Box3().setFromObject(modelGroup);
+  const center = box.getCenter(new THREE.Vector3());
+  const size = new THREE.Vector3();
+  box.getSize(size);
+  const maxDim = Math.max(size.x, size.y, size.z);
+
+  // 2. 计算相机相关信息
+  const fov = camera.fov * (Math.PI / 180);
+  const distToCamera = camera.position.distanceTo(center);
+
+  // 3. 计算视野边界
+  // 在爆炸方向上的最大可见距离（基于 FOV 和相机距离）
+  // 留 40% 的边距，确保部件不会太靠近屏幕边缘
+  const maxVisibleDist = distToCamera * Math.tan(fov / 2) * 0.6;
+
+  // 4. 计算从相机到中心的方向
+  const toCamera = new THREE.Vector3().subVectors(camera.position, center).normalize();
+
+  // 5. 计算爆炸方向与相机方向的夹角
+  const angleWithCamera = explodeDir.angleTo(toCamera);
+
+  // 6. 如果爆炸方向朝向相机，需要更小的爆炸距离
+  let angleFactor = 1.0;
+  if (angleWithCamera < Math.PI / 4) {
+    // 朝向相机爆炸，需要减小距离
+    angleFactor = 0.5 + angleWithCamera / (Math.PI / 2);
+  }
+
+  // 7. 计算建议的爆炸距离
+  // 基础距离：模型尺寸的 40%（明显但不夸张）
+  let suggestedDist = maxDim * 0.4;
+
+  // 确保最小可见性
+  suggestedDist = Math.max(suggestedDist, 1.0);
+
+  // 确保不会飞出屏幕
+  suggestedDist = Math.min(suggestedDist, maxVisibleDist * angleFactor);
+
+  // 确保不会太小
+  suggestedDist = Math.max(suggestedDist, 0.8);
+
+  console.log('🧮 智能爆炸距离计算:', {
+    modelSize: maxDim.toFixed(2),
+    distToCamera: distToCamera.toFixed(2),
+    maxVisibleDist: maxVisibleDist.toFixed(2),
+    angleWithCamera: (angleWithCamera * 180 / Math.PI).toFixed(1) + '°',
+    angleFactor: angleFactor.toFixed(2),
+    suggestedDist: suggestedDist.toFixed(2)
+  });
+
+  return suggestedDist;
+}
+
 // ===== 增强灯光系统 =====
 const ambientLight = new THREE.AmbientLight(0xffffff, 0.45);
 scene.add(ambientLight);
@@ -373,7 +490,8 @@ function computeExplodeDirection(mesh, groupCenter) {
 
 async function loadCustomModel(arrayBuffer, fileName) {
   try {
-    const loader = await loadGLTFLoader();
+    const LoaderClass = await loadGLTFLoader();
+    const loader = new LoaderClass();
     const blob = new Blob([arrayBuffer]);
     const url = URL.createObjectURL(blob);
 
@@ -405,8 +523,10 @@ async function loadCustomModel(arrayBuffer, fileName) {
         child.getWorldPosition(worldPos);
         const homePos = worldPos.clone().sub(center); // 相对于中心
         const explodeDir = worldPos.clone().sub(center).normalize();
-        const explodeDist = worldPos.distanceTo(center) * 3;
-        const explodePos = explodeDir.multiplyScalar(explodeDist);
+        // 先计算原始爆炸距离，后面会智能调整
+        const originalDist = Math.max(worldPos.distanceTo(center) * 5, 0.5);
+        // 暂时使用原始距离，加载完成后会用智能计算更新
+        const explodePos = explodeDir.clone().multiplyScalar(originalDist);
 
         // 保存引用
         child.userData = { name: `${fileName}_part${partIndex}` };
@@ -432,6 +552,11 @@ async function loadCustomModel(arrayBuffer, fileName) {
     customModelGroup.add(model);
 
     hasCustomModel = true;
+
+    // 隐藏默认模型，显示自定义模型
+    questGroup.visible = false;
+    console.log('✅ 已隐藏默认 Quest 3 模型，显示自定义模型');
+
     URL.revokeObjectURL(url);
 
     // 更新 UI
@@ -444,7 +569,60 @@ async function loadCustomModel(arrayBuffer, fileName) {
     explodeBtn.classList.add('exploded');
     explodeBtn.textContent = '🔄 合体';
 
-    console.log(`自定义模型加载完成：${partIndex} 个部件`);
+    // ========== 自动放大微小的模型 ==========
+    // 计算包围盒
+    const autoBox = new THREE.Box3().setFromObject(customModelGroup);
+    const autoSize = new THREE.Vector3();
+    autoBox.getSize(autoSize);
+    const autoMaxDim = Math.max(autoSize.x, autoSize.y, autoSize.z);
+    const autoCenter = autoBox.getCenter(new THREE.Vector3());
+
+    // 计算需要放大多少倍，让模型最大尺寸约为 10 单位
+    let autoScale = 1.0;
+    if (autoMaxDim < 5.0) {
+      autoScale = 10.0 / autoMaxDim;
+      // 限制最大 20 倍，防止过大
+      autoScale = Math.min(autoScale, 20);
+    }
+
+    if (autoScale > 1.0) {
+      // 放大模型位置（爆炸距离将在后面由智能计算更新）
+      for (let i = 0; i < customModelParts.length; i++) {
+        customModelParts[i].homePos.multiplyScalar(autoScale);
+      }
+
+      // 缩放模型组
+      customModelGroup.scale.set(autoScale, autoScale, autoScale);
+      // 调整位置：将放大后的模型中心移回原点
+      customModelGroup.position.sub(autoCenter.clone().multiplyScalar(autoScale));
+      console.log(`🔍 模型自动放大 ${autoScale.toFixed(1)} 倍（原始 ${autoMaxDim.toFixed(3)} → 放大后 ${(autoMaxDim * autoScale).toFixed(1)}）`);
+      console.log(`💥 爆炸距离将在适配相机后智能计算（模型 ${autoScale.toFixed(1)}×）`);
+    }
+
+    // 自动适配相机
+    fitCameraToModel(customModelGroup, false);
+
+    // ========== 智能调整爆炸距离（确保不飞出屏幕）==========
+    // 等待一帧，确保相机和模型都已就位
+    requestAnimationFrame(() => {
+      for (let i = 0; i < customModelParts.length; i++) {
+        const part = customModelParts[i];
+        const explodeDir = part.explodePos.clone().normalize();
+        // 计算智能爆炸距离
+        const smartDist = calculateSmartExplodeDist(customModelGroup, explodeDir);
+        // 更新爆炸坐标
+        part.explodePos.copy(explodeDir.multiplyScalar(smartDist));
+      }
+      console.log('✅ 爆炸距离已智能调整（适应模型大小和相机位置）');
+    });
+
+    console.log(`✅ 自定义模型加载完成：${partIndex} 个部件`);
+    console.log('📊 customModelParts:', customModelParts);
+    console.log('🔍 第一个部件:', customModelParts[0]);
+    if (customModelParts[0]) {
+      console.log('   homePos:', customModelParts[0].homePos);
+      console.log('   explodePos:', customModelParts[0].explodePos);
+    }
   } catch (err) {
     console.error('加载模型失败：', err);
     showStatus(`❌ 加载失败：${err.message}`, 'error');
@@ -471,6 +649,10 @@ function clearCustomModel() {
   }
   customModelParts = [];
   hasCustomModel = false;
+
+  // 恢复默认模型可见性
+  questGroup.visible = true;
+  console.log('✅ 已恢复默认 Quest 3 模型');
 
   const countEl = document.getElementById('part-count');
   if (countEl) countEl.textContent = '15';
@@ -516,6 +698,9 @@ const quest3Specs = {
   battery: '4879 mAh 锂离子电池 (约2-3小时使用)',
   os: 'Meta Horizon OS (基于Android)',
 };
+
+// 自动适配相机到默认模型
+fitCameraToModel(questGroup, false);
 
 // ===== 分步骤拆解（教学导向，参考 iFixit 风格）=====
 const stepGroups = [
@@ -1274,13 +1459,35 @@ function updateExplodedView(now) {
 
   // 自定义模型部件（如果有）
   if (hasCustomModel && customModelParts.length > 0) {
+    // 使用与步骤动画相同的因子
     const customFactor = mouseControlEnabled ? mouseFactor : (currentStep / totalSteps);
 
-    customModelParts.forEach((part) => {
-      part.mesh.position.lerpVectors(part.homePos, part.explodePos, customFactor);
+    console.log('💥 自定义模型爆炸更新:', {
+      hasCustomModel,
+      partCount: customModelParts.length,
+      customFactor,
+      currentStep,
+      totalSteps
+    });
+
+    customModelParts.forEach((part, index) => {
+      const startPos = part.homePos;
+      const endPos = part.explodePos;
+
+      // 应用插值
+      part.mesh.position.lerpVectors(startPos, endPos, customFactor);
       part.mesh.rotation.x = THREE.MathUtils.lerp(part.homeRot.x, part.explodeRot.x, customFactor);
       part.mesh.rotation.y = THREE.MathUtils.lerp(part.homeRot.y, part.explodeRot.y, customFactor);
       part.mesh.rotation.z = THREE.MathUtils.lerp(part.homeRot.z, part.explodeRot.z, customFactor);
+
+      // 调试第一个部件
+      if (index === 0) {
+        console.log('   部件 0:', {
+          start: startPos.toArray().map(v => v.toFixed(2)),
+          end: endPos.toArray().map(v => v.toFixed(2)),
+          current: part.mesh.position.toArray().map(v => v.toFixed(2))
+        });
+      }
     });
   }
 }

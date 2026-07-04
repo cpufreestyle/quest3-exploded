@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quest 3 自动智能拆分</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #0a0c12;
+      color: #e6e6e6;
+      overflow: hidden;
+    }
+    #canvas-container {
+      width: 100vw;
+      height: 100vh;
+    }
+    #info {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      background: rgba(15, 16, 22, 0.95);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(74, 158, 255, 0.3);
+      border-radius: 12px;
+      padding: 20px;
+      max-width: 450px;
+      max-height: 80vh;
+      overflow-y: auto;
+      z-index: 100;
+    }
+    h1 {
+      color: #4a9eff;
+      font-size: 20px;
+      margin-bottom: 16px;
+    }
+    .step {
+      margin: 12px 0;
+      padding: 10px;
+      background: rgba(255, 255, 255, 0.03);
+      border-radius: 6px;
+      font-size: 13px;
+    }
+    .step.active {
+      background: rgba(74, 158, 255, 0.15);
+      border-left: 3px solid #4a9eff;
+    }
+    .step.done {
+      color: #4caf50;
+    }
+    button {
+      background: linear-gradient(135deg, #4a9eff, #8f7aff);
+      color: white;
+      border: none;
+      padding: 12px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      margin-top: 12px;
+      width: 100%;
+    }
+    button:hover {
+      opacity: 0.9;
+    }
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    #loading {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      z-index: 200;
+    }
+    .spinner {
+      width: 60px;
+      height: 60px;
+      border: 4px solid rgba(74, 158, 255, 0.2);
+      border-top-color: #4a9eff;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 20px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #progress {
+      margin-top: 10px;
+      font-size: 13px;
+      color: #8b8d98;
+    }
+  </style>
+</head>
+<body>
+  <div id="loading">
+    <div class="spinner"></div>
+    <div style="font-size: 18px; color: #4a9eff;">正在分析模型...</div>
+    <div id="progress">准备中...</div>
+  </div>
+
+  <div id="canvas-container"></div>
+
+  <div id="info">
+    <h1>🤖 Quest 3 自动拆分</h1>
+    <div id="steps"></div>
+    <button id="start-btn">🚀 开始自动拆分</button>
+    <button id="reset-btn" style="display: none;">🔄 重新加载</button>
+  </div>
+
+  <script type="module">
+    import * as THREE from './vendor/three.module.js?v=1783166735';
+    import { OrbitControls } from './vendor/OrbitControls.js?v=1783166735';
+
+    // 动态导入 GLTFLoader
+    let GLTFLoader = null;
+    async function loadGLTFLoader() {
+      if (!GLTFLoader) {
+        const module = await import('./vendor/GLTFLoader.js?v=1783166735');
+        GLTFLoader = module.GLTFLoader;
+      }
+      return GLTFLoader;
+    }
+
+    const container = document.getElementById('canvas-container');
+    const loadingEl = document.getElementById('loading');
+    const progressEl = document.getElementById('progress');
+    const stepsEl = document.getElementById('steps');
+    const startBtn = document.getElementById('start-btn');
+    const resetBtn = document.getElementById('reset-btn');
+
+    function addStep(text) {
+      const div = document.createElement('div');
+      div.className = 'step';
+      div.textContent = text;
+      stepsEl.appendChild(div);
+      return div;
+    }
+
+    function updateProgress(msg) {
+      progressEl.textContent = msg;
+      console.log('📊', msg);
+    }
+
+    // 场景
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0a0c12);
+
+    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+    camera.position.set(3, 2, 3);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    container.appendChild(renderer.domElement);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+
+    scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+    const dir = new THREE.DirectionalLight(0xffffff, 1);
+    dir.position.set(5, 10, 7);
+    scene.add(dir);
+
+    let originalModel = null;
+
+    // 加载模型
+    async function loadModel() {
+      updateProgress('下载 Quest3.glb...');
+      const response = await fetch('./models/Quest3.glb');
+      const buffer = await response.arrayBuffer();
+      updateProgress('解析中...');
+
+      const LoaderClass = await loadGLTFLoader();
+      const loader = new LoaderClass();
+      const gltf = await new Promise((resolve, reject) => {
+        loader.parse(buffer, '', resolve, (err) => reject(new Error('解析失败：' + err.message)));
+      });
+
+      originalModel = gltf.scene;
+      const box = new THREE.Box3().setFromObject(originalModel);
+      const center = new THREE.Vector3();
+      box.getCenter(center);
+      originalModel.position.sub(center);
+
+      scene.add(originalModel);
+
+      // 调整相机
+      const size = new THREE.Vector3();
+      box.getSize(size);
+      const maxDim = Math.max(size.x, size.y, size.z);
+      const dist = maxDim / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2));
+      camera.position.set(dist * 1.5, dist * 1, dist * 1.5);
+      controls.target.set(0, 0, 0);
+      controls.update();
+
+      loadingEl.style.display = 'none';
+      startBtn.style.display = 'block';
+
+      // 统计
+      let count = 0;
+      originalModel.traverse(() => count++);
+      addStep(`✅ 模型加载完成 (${count} 个对象)`);
+    }
+
+    // 自动拆分算法
+    async function autoSplitModel() {
+      startBtn.disabled = true;
+      startBtn.textContent = '⏳ 拆分中...';
+
+      const steps = [];
+      const step1 = addStep('🔍 分析模型结构...');
+      step1.className = 'step active';
+
+      // 等待一帧让 UI 更新
+      await new Promise(r => setTimeout(r, 100));
+
+      // 1. 分析顶点数据
+      const vertices = [];
+      const normals = [];
+      const positions = [];
+
+      originalModel.traverse((child) => {
+        if (child.isMesh && child.geometry) {
+          const geo = child.geometry;
+          const pos = geo.attributes.position;
+          if (pos) {
+            for (let i = 0; i < pos.count; i++) {
+              const x = pos.getX(i);
+              const y = pos.getY(i);
+              const z = pos.getZ(i);
+
+              // 转换到世界坐标
+              const worldPos = new THREE.Vector3(x, y, z);
+              child.localToWorld(worldPos);
+
+              positions.push(worldPos);
+              vertices.push(x, y, z);
+            }
+          }
+        }
+      });
+
+      step1.className = 'step done';
+      updateProgress(`分析完成: ${positions.length} 个顶点`);
+
+      // 2. 基于 Y 轴分层（上下分离）
+      const step2 = addStep('📐 检测分层结构...');
+      step2.className = 'step active';
+      await new Promise(r => setTimeout(r, 50));
+
+      // 计算 Y 轴范围
+      let minY = Infinity, maxY = -Infinity;
+      positions.forEach(p => {
+        minY = Math.min(minY, p.y);
+        maxY = Math.max(maxY, p.y);
+      });
+
+      const height = maxY - minY;
+      const layers = [];
+
+      // 分层：头带/顶部、透镜区、主体、底部
+      const layerThresholds = [
+        { name: '顶部/头带', y: minY + height * 0.7 },
+        { name: '上部/前面板', y: minY + height * 0.5 },
+        { name: '中部/透镜', y: minY + height * 0.3 },
+        { name: '下部/主体', y: minY + height * 0.1 },
+        { name: '底部', y: minY }
+      ];
+
+      layerThresholds.forEach(layer => {
+        const layerVerts = positions.filter(p => p.y >= layer.y);
+        if (layerVerts.length > 100) {
+          layers.push({
+            name: layer.name,
+            count: layerVerts.length,
+            y: layer.y
+          });
+        }
+      });
+
+      step2.className = 'step done';
+      updateProgress(`检测到 ${layers.length} 个层级`);
+
+      // 3. 基于 X 轴分左右
+      const step3 = addStep('🔪 分离左右部件...');
+      step3.className = 'step active';
+      await new Promise(r => setTimeout(r, 50));
+
+      // 计算中心
+      let centerX = 0;
+      positions.forEach(p => centerX += p.x);
+      centerX /= positions.length;
+
+      const leftVerts = positions.filter(p => p.x < centerX);
+      const rightVerts = positions.filter(p => p.x >= centerX);
+
+      const parts = [];
+      let partId = 0;
+
+      // 左半部分
+      if (leftVerts.length > 500) {
+        parts.push({
+          id: partId++,
+          name: '左侧部件',
+          side: 'left',
+          count: leftVerts.length,
+          center: new THREE.Vector3(
+            leftVerts.reduce((s, p) => s + p.x, 0) / leftVerts.length,
+            leftVerts.reduce((s, p) => s + p.y, 0) / leftVerts.length,
+            leftVerts.reduce((s, p) => s + p.z, 0) / leftVerts.length
+          )
+        });
+      }
+
+      // 右半部分
+      if (rightVerts.length > 500) {
+        parts.push({
+          id: partId++,
+          name: '右侧部件',
+          side: 'right',
+          count: rightVerts.length,
+          center: new THREE.Vector3(
+            rightVerts.reduce((s, p) => s + p.x, 0) / rightVerts.length,
+            rightVerts.reduce((s, p) => s + p.y, 0) / rightVerts.length,
+            rightVerts.reduce((s, p) => s + p.z, 0) / rightVerts.length
+          )
+        });
+      }
+
+      step3.className = 'step done';
+      updateProgress(`分离出 ${parts.length} 个主要部件`);
+
+      // 4. 基于 Z 轴分离前后
+      const step4 = addStep('🎯 分离前后部件...');
+      step4.className = 'step active';
+      await new Promise(r => setTimeout(r, 50));
+
+      let centerZ = 0;
+      positions.forEach(p => centerZ += p.z);
+      centerZ /= positions.length;
+
+      const frontVerts = positions.filter(p => p.z > centerZ);
+      const backVerts = positions.filter(p => p.z <= centerZ);
+
+      if (frontVerts.length > 500) {
+        parts.push({
+          id: partId++,
+          name: '前面部件',
+          side: 'front',
+          count: frontVerts.length,
+          center: new THREE.Vector3(
+            frontVerts.reduce((s, p) => s + p.x, 0) / frontVerts.length,
+            frontVerts.reduce((s, p) => s + p.y, 0) / frontVerts.length,
+            frontVerts.reduce((s, p) => s + p.z, 0) / frontVerts.length
+          )
+        });
+      }
+
+      if (backVerts.length > 500) {
+        parts.push({
+          id: partId++,
+          name: '后面部件',
+          side: 'back',
+          count: backVerts.length,
+          center: new THREE.Vector3(
+            backVerts.reduce((s, p) => s + p.x, 0) / backVerts.length,
+            backVerts.reduce((s, p) => s + p.y, 0) / backVerts.length,
+            backVerts.reduce((s, p) => s + p.z, 0) / backVerts.length
+          )
+        });
+      }
+
+      step4.className = 'step done';
+      updateProgress(`总共识别出 ${parts.length} 个潜在部件`);
+
+      // 5. 创建爆炸效果
+      const step5 = addStep('💥 创建爆炸效果...');
+      step5.className = 'step active';
+      await new Promise(r => setTimeout(r, 50));
+
+      // 创建高亮框
+      const boxHelper = new THREE.Box3Helper(
+        new THREE.Box3().setFromObject(originalModel),
+        0x4a9eff
+      );
+      scene.add(boxHelper);
+
+      // 显示分割信息
+      updateProgress(`识别完成！`);
+      step5.className = 'step done';
+
+      addStep(`✅ 分析完成！`);
+      addStep(`💡 发现 ${parts.length} 个潜在部件区域`);
+      addStep(`💡 总顶点数: ${positions.length.toLocaleString()}`);
+
+      // 创建标记
+      parts.forEach((part, index) => {
+        const sphere = new THREE.Mesh(
+          new THREE.SphereGeometry(0.05, 16, 16),
+          new THREE.MeshBasicMaterial({ color: 0xff6b6b })
+        );
+        sphere.position.copy(part.center);
+        scene.add(sphere);
+
+        addStep(`  ${index + 1}. ${part.name} (${part.count.toLocaleString()} 顶点)`);
+      });
+
+      startBtn.style.display = 'none';
+      resetBtn.style.display = 'block';
+
+      // 启动动画
+      animate();
+
+      alert(`🤖 自动拆分完成！\n\n📊 分析结果：\n• 检测到 ${parts.length} 个潜在部件\n• 总顶点数: ${positions.length.toLocaleString()}\n• 红点标记了部件中心\n\n💡 这只是一个初步分析。\n要获得真正的爆炸效果，\n需要在 Blender 中手动拆分。`);
+    }
+
+    // 动画
+    function animate() {
+      requestAnimationFrame(animate);
+      controls.update();
+      renderer.render(scene, camera);
+    }
+
+    // 事件
+    startBtn.onclick = autoSplitModel;
+    resetBtn.onclick = () => location.reload();
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // 开始加载
+    loadModel();
+  </script>
+</body>
+</html>

@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>简单 fetch 测试</title>
+  <style>
+    body {
+      font-family: monospace;
+      padding: 20px;
+      background: #1a1a2e;
+      color: #e6e6e6;
+    }
+    .log {
+      margin: 8px 0;
+      padding: 10px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 4px;
+      font-size: 13px;
+    }
+    .success { color: #4caf50; }
+    .error { color: #ff6b6b; }
+    .warn { color: #ffc107; }
+    button {
+      background: #4a9eff;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 6px;
+      cursor: pointer;
+      margin: 10px 5px;
+      font-size: 14px;
+    }
+    button:hover { background: #3a8eef; }
+    #result {
+      margin-top: 20px;
+      max-height: 500px;
+      overflow-y: auto;
+    }
+    .tip {
+      background: rgba(255, 193, 7, 0.1);
+      border-left: 3px solid #ffc107;
+      padding: 12px;
+      margin: 10px 0;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+  <h1>🧪 fetch 测试</h1>
+
+  <div class="tip">
+    <strong>💡 提示：</strong>这个页面测试浏览器是否能下载 Quest3.glb 文件
+  </div>
+
+  <button id="fetch-test">测试 fetch API</button>
+  <button id="xhr-test">测试 XMLHttpRequest</button>
+  <button id="clear">清除</button>
+
+  <div id="result"></div>
+
+  <script>
+    const result = document.getElementById('result');
+
+    function log(msg, type = '') {
+      const div = document.createElement('div');
+      div.className = `log ${type}`;
+      const time = new Date().toLocaleTimeString();
+      div.textContent = `[${time}] ${msg}`;
+      result.appendChild(div);
+      result.scrollTop = result.scrollHeight;
+      console.log(msg);
+    }
+
+    function clear() {
+      result.innerHTML = '';
+    }
+
+    // 测试 fetch
+    document.getElementById('fetch-test').addEventListener('click', async () => {
+      clear();
+      log('🔍 开始 fetch 测试...\n');
+
+      try {
+        log('📡 请求: ./models/Quest3.glb');
+        log('   方法: GET');
+
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 15000); // 15秒超时
+
+        log('⏳ 等待响应...');
+        const response = await fetch('./models/Quest3.glb', {
+          method: 'GET',
+          headers: {
+            'Accept': 'model/gltf-binary, */*',
+            'Cache-Control': 'no-cache'
+          },
+          cache: 'no-store',
+          signal: controller.signal
+        });
+
+        clearTimeout(timeout);
+        log(`✅ 收到响应!`, 'success');
+        log(`   状态: ${response.status} ${response.statusText}`);
+        log(`   OK: ${response.ok}`);
+
+        log(`\n📋 响应头:`);
+        response.headers.forEach((value, key) => {
+          log(`   ${key}: ${value}`);
+        });
+
+        log(`\n📦 开始读取数据...`);
+        const startTime = Date.now();
+        const buffer = await response.arrayBuffer();
+        const duration = Date.now() - startTime;
+
+        const sizeMB = (buffer.byteLength / 1024 / 1024).toFixed(2);
+        log(`✅ 数据读取完成!`, 'success');
+        log(`   大小: ${sizeMB} MB`);
+        log(`   耗时: ${duration}ms`);
+        log(`   类型: ${buffer.constructor.name}`);
+        log(`   长度: ${buffer.byteLength} bytes`);
+
+        log(`\n🎉 fetch 测试通过!`);
+
+      } catch (err) {
+        log(`\n❌ fetch 失败:`, 'error');
+        log(`   类型: ${err.constructor.name}`, 'error');
+        log(`   消息: ${err.message}`, 'error');
+
+        if (err.name === 'AbortError') {
+          log(`\n⚠️ 请求超时 (15秒)`, 'warn');
+          log(`   可能原因:`, 'warn');
+          log(`   1. 网络连接问题`, 'warn');
+          log(`   2. 浏览器扩展阻止 (广告拦截器、隐私保护)`, 'warn');
+          log(`   3. CORS 限制`, 'warn');
+          log(`   4. 文件太大 (8.2 MB)`, 'warn');
+        }
+
+        console.error('详细错误:', err);
+      }
+    });
+
+    // 测试 XMLHttpRequest
+    document.getElementById('xhr-test').addEventListener('click', () => {
+      clear();
+      log('🔍 开始 XMLHttpRequest 测试...\n');
+
+      try {
+        log('📡 创建 XHR 对象...');
+        const xhr = new XMLHttpRequest();
+        xhr.open('GET', './models/Quest3.glb', true);
+        xhr.responseType = 'arraybuffer';
+
+        log('📡 设置超时 (15秒)...');
+        xhr.timeout = 15000;
+
+        xhr.onloadstart = () => {
+          log('⏳ 请求开始...');
+        };
+
+        xhr.onprogress = (e) => {
+          if (e.lengthComputable) {
+            const percent = ((e.loaded / e.total) * 100).toFixed(1);
+            const loadedMB = (e.loaded / 1024 / 1024).toFixed(2);
+            const totalMB = (e.total / 1024 / 1024).toFixed(2);
+            log(`📊 进度: ${loadedMB} / ${totalMB} MB (${percent}%)`);
+          } else {
+            log(`📊 已下载: ${(e.loaded / 1024 / 1024).toFixed(2)} MB`);
+          }
+        };
+
+        xhr.onload = () => {
+          if (xhr.status === 200) {
+            const sizeMB = (xhr.response.byteLength / 1024 / 1024).toFixed(2);
+            log(`✅ XHR 下载成功!`, 'success');
+            log(`   状态: ${xhr.status}`);
+            log(`   大小: ${sizeMB} MB`);
+            log(`   类型: ArrayBuffer`);
+          } else {
+            log(`❌ HTTP 错误: ${xhr.status} ${xhr.statusText}`, 'error');
+          }
+        };
+
+        xhr.onerror = () => {
+          log(`❌ XHR 网络错误`, 'error');
+          log(`   状态: ${xhr.readyState}`);
+          log(`   状态文本: ${xhr.statusText}`);
+        };
+
+        xhr.ontimeout = () => {
+          log(`⏰ XHR 超时`, 'error');
+        };
+
+        log('📡 发送请求...');
+        xhr.send();
+
+      } catch (err) {
+        log(`❌ XHR 失败: ${err.message}`, 'error');
+        console.error(err);
+      }
+    });
+
+    document.getElementById('clear').addEventListener('click', clear);
+
+    // 自动运行 fetch 测试
+    setTimeout(() => {
+      log('页面加载完成，自动运行 fetch 测试...\n');
+      document.getElementById('fetch-test').click();
+    }, 500);
+  </script>
+</body>
+</html>

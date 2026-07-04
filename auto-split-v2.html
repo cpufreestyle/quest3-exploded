@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quest 3 智能拆分 v2</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #0a0c12;
+      color: #e6e6e6;
+      overflow: hidden;
+    }
+    #canvas-container { width: 100vw; height: 100vh; }
+    #info {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      background: rgba(15, 16, 22, 0.95);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(74, 158, 255, 0.3);
+      border-radius: 12px;
+      padding: 20px;
+      max-width: 500px;
+      max-height: 80vh;
+      overflow-y: auto;
+      z-index: 100;
+    }
+    h1 { color: #4a9eff; font-size: 20px; margin-bottom: 16px; }
+    .part-item {
+      margin: 8px 0;
+      padding: 10px;
+      background: rgba(255, 255, 255, 0.03);
+      border-radius: 6px;
+      font-size: 13px;
+      border-left: 3px solid #4a9eff;
+    }
+    button {
+      background: linear-gradient(135deg, #4a9eff, #8f7aff);
+      color: white;
+      border: none;
+      padding: 12px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      margin-top: 12px;
+      width: 100%;
+    }
+    button:hover { opacity: 0.9; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    #loading {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      z-index: 200;
+    }
+    .spinner {
+      width: 60px;
+      height: 60px;
+      border: 4px solid rgba(74, 158, 255, 0.2);
+      border-top-color: #4a9eff;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 20px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #progress {
+      margin-top: 10px;
+      font-size: 13px;
+      color: #8b8d98;
+    }
+    .success { color: #4caf50; }
+    .error { color: #ff6b6b; }
+  </style>
+</head>
+<body>
+  <div id="loading">
+    <div class="spinner"></div>
+    <div style="font-size: 18px; color: #4a9eff;">正在智能分析模型...</div>
+    <div id="progress">准备中...</div>
+  </div>
+
+  <div id="canvas-container"></div>
+
+  <div id="info">
+    <h1>🤖 Quest 3 智能拆分 v2</h1>
+    <div id="parts-list"></div>
+    <button id="start-btn">🚀 开始智能分析</button>
+  </div>
+
+  <script type="module">
+    import * as THREE from './vendor/three.module.js?v=1783166735';
+    import { OrbitControls } from './vendor/OrbitControls.js?v=1783166735';
+
+    // 动态导入 GLTFLoader
+    let GLTFLoader = null;
+    async function loadGLTFLoader() {
+      if (!GLTFLoader) {
+        const module = await import('./vendor/GLTFLoader.js?v=1783166735');
+        GLTFLoader = module.GLTFLoader;
+      }
+      return GLTFLoader;
+    }
+
+    const container = document.getElementById('canvas-container');
+    const loadingEl = document.getElementById('loading');
+    const progressEl = document.getElementById('progress');
+    const partsListEl = document.getElementById('parts-list');
+    const startBtn = document.getElementById('start-btn');
+
+    function updateProgress(msg) {
+      progressEl.textContent = msg;
+      console.log('📊', msg);
+    }
+
+    function addPart(text, type = 'info') {
+      const div = document.createElement('div');
+      div.className = 'part-item';
+      if (type === 'success') div.classList.add('success');
+      if (type === 'error') div.classList.add('error');
+      div.textContent = text;
+      partsListEl.appendChild(div);
+    }
+
+    // 场景
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0a0c12);
+
+    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+    camera.position.set(3, 2, 3);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    container.appendChild(renderer.domElement);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+
+    scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+    const dir = new THREE.DirectionalLight(0xffffff, 1);
+    dir.position.set(5, 10, 7);
+    scene.add(dir);
+
+    let originalModel = null;
+
+    // 加载模型
+    async function loadModel() {
+      updateProgress('下载 Quest3.glb...');
+      const response = await fetch('./models/Quest3.glb');
+      const buffer = await response.arrayBuffer();
+      updateProgress('解析中...');
+
+      const LoaderClass = await loadGLTFLoader();
+      const loader = new LoaderClass();
+      const gltf = await new Promise((resolve, reject) => {
+        loader.parse(buffer, '', resolve, (err) => reject(new Error('解析失败：' + err.message)));
+      });
+
+      originalModel = gltf.scene;
+      const box = new THREE.Box3().setFromObject(originalModel);
+      const center = new THREE.Vector3();
+      box.getCenter(center);
+      originalModel.position.sub(center);
+      scene.add(originalModel);
+
+      // 调整相机
+      const size = new THREE.Vector3();
+      box.getSize(size);
+      const maxDim = Math.max(size.x, size.y, size.z);
+      const dist = maxDim / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2));
+      camera.position.set(dist * 1.5, dist * 1, dist * 1.5);
+      controls.target.set(0, 0, 0);
+      controls.update();
+
+      loadingEl.style.display = 'none';
+      startBtn.style.display = 'block';
+
+      // 统计
+      let count = 0;
+      originalModel.traverse(() => count++);
+      addPart(`✅ 模型加载完成 (${count} 个对象)`);
+      addPart(`📦 开始智能分析...`);
+    }
+
+    // K-means 聚类算法
+    function kMeans(points, k, maxIterations = 50) {
+      // 初始化质心（随机选择）
+      const centroids = [];
+      for (let i = 0; i < k; i++) {
+        centroids.push(points[Math.floor(Math.random() * points.length)].clone());
+      }
+
+      for (let iter = 0; iter < maxIterations; iter++) {
+        // 分配点到最近的质心
+        const clusters = Array(k).fill(null).map(() => []);
+
+        points.forEach(point => {
+          let minDist = Infinity;
+          let clusterIdx = 0;
+
+          centroids.forEach((centroid, idx) => {
+            const dist = point.distanceTo(centroid);
+            if (dist < minDist) {
+              minDist = dist;
+              clusterIdx = idx;
+            }
+          });
+
+          clusters[clusterIdx].push(point);
+        });
+
+        // 更新质心
+        let converged = true;
+        clusters.forEach((cluster, idx) => {
+          if (cluster.length === 0) return;
+
+          const newCentroid = new THREE.Vector3();
+          cluster.forEach(p => newCentroid.add(p));
+          newCentroid.divideScalar(cluster.length);
+
+          if (newCentroid.distanceTo(centroids[idx]) > 0.001) {
+            converged = false;
+          }
+          centroids[idx] = newCentroid;
+        });
+
+        if (converged) break;
+      }
+
+      return centroids;
+    }
+
+    // 智能拆分算法
+    async function smartSplit() {
+      startBtn.disabled = true;
+      startBtn.textContent = '⏳ 分析中...';
+
+      const progressEl = document.getElementById('progress');
+
+      // 1. 收集所有顶点
+      updateProgress('收集顶点数据...');
+      const positions = [];
+
+      originalModel.traverse((child) => {
+        if (child.isMesh && child.geometry) {
+          const pos = child.geometry.attributes.position;
+          if (pos) {
+            for (let i = 0; i < pos.count; i++) {
+              const worldPos = new THREE.Vector3(
+                pos.getX(i),
+                pos.getY(i),
+                pos.getZ(i)
+              );
+              child.localToWorld(worldPos);
+              positions.push(worldPos);
+            }
+          }
+        }
+      });
+
+      updateProgress(`收集完成: ${positions.length} 个顶点`);
+      addPart(`📊 总顶点数: ${positions.length.toLocaleString()}`);
+
+      // 2. 基于 Y 轴分层（头带、透镜、主体、底部）
+      updateProgress('检测垂直层级...');
+      let minY = Infinity, maxY = -Infinity;
+      positions.forEach(p => {
+        minY = Math.min(minY, p.y);
+        maxY = Math.max(maxY, p.y);
+      });
+
+      const height = maxY - minY;
+      const yLayers = [
+        { name: '顶部区域', range: [minY + height * 0.6, maxY] },
+        { name: '上部区域', range: [minY + height * 0.45, minY + height * 0.6] },
+        { name: '中部区域', range: [minY + height * 0.25, minY + height * 0.45] },
+        { name: '下部区域', range: [minY, minY + height * 0.25] }
+      ];
+
+      // 3. 基于 X 和 Z 轴的空间分割
+      updateProgress('计算空间分割...');
+      let centerX = 0, centerZ = 0;
+      positions.forEach(p => {
+        centerX += p.x;
+        centerZ += p.z;
+      });
+      centerX /= positions.length;
+      centerZ /= positions.length;
+
+      addPart(`📍 模型中心: (${centerX.toFixed(2)}, ${centerZ.toFixed(2)})`);
+
+      // 4. 使用 K-means 检测 8 个聚类
+      updateProgress('K-means 聚类分析 (k=8)...');
+
+      // 采样以提高速度（最多 5000 个点）
+      const sampleRate = Math.min(1, 5000 / positions.length);
+      const samplePoints = [];
+      for (let i = 0; i < positions.length; i += Math.floor(1 / sampleRate)) {
+        samplePoints.push(positions[i]);
+      }
+
+      const k = 8;
+      const centroids = kMeans(samplePoints, k, 100);
+
+      updateProgress(`聚类完成: ${k} 个区域`);
+
+      // 5. 将聚类映射到 Quest 3 的实际部件
+      addPart(`🔍 检测到的区域:`);
+
+      const parts = [];
+      const colors = [
+        0xff6b6b, 0x4a9eff, 0x4caf50, 0xffc107,
+        0x9c27b0, 0x00bcd4, 0xff9800, 0xe91e63
+      ];
+
+      centroids.forEach((centroid, idx) => {
+        // 根据质心位置推断部件名称
+        let partName = `部件 ${idx + 1}`;
+
+        if (centroid.y > minY + height * 0.6) {
+          partName = '头带/顶部';
+        } else if (centroid.y > minY + height * 0.45) {
+          partName = centroid.x > centerX ? '右头带臂' : '左头带臂';
+        } else if (centroid.y > minY + height * 0.25) {
+          if (centroid.z > maxY * 0.3) {
+            partName = centroid.x > centerX ? '右摄像头' : '左摄像头';
+          } else {
+            partName = centroid.x > centerX ? '右透镜' : '左透镜';
+          }
+        } else {
+          if (centroid.z > centerZ) {
+            partName = '前面板';
+          } else {
+            partName = '主机身';
+          }
+        }
+
+        parts.push({
+          name: partName,
+          center: centroid,
+          color: colors[idx % colors.length]
+        });
+
+        addPart(`  ${idx + 1}. ${partName} (${centroid.y.toFixed(2)})`);
+      });
+
+      // 6. 在场景中显示
+      updateProgress('创建可视化...');
+
+      // 添加标记球体
+      parts.forEach(part => {
+        const sphere = new THREE.Mesh(
+          new THREE.SphereGeometry(0.03, 16, 16),
+          new THREE.MeshBasicMaterial({ color: part.color })
+        );
+        sphere.position.copy(part.center);
+        scene.add(sphere);
+      });
+
+      // 完成
+      updateProgress('✅ 分析完成！');
+      addPart(`✅ 完成！识别出 ${parts.length} 个潜在部件`, 'success');
+      addPart(`💡 这只是基于位置的初步分析`);
+      addPart(`💡 真实爆炸需要在 Blender 中手动拆分`);
+
+      startBtn.textContent = '✅ 分析完成';
+      startBtn.disabled = true;
+
+      // 启动动画
+      animate();
+
+      setTimeout(() => {
+        alert(`🤖 智能分析完成！\n\n📊 结果：\n• 检测到 ${parts.length} 个潜在区域\n• 基于位置、高度、聚类算法\n\n💡 彩色球体标记了各个区域中心\n\n⚠️ 注意：这不是真正的爆炸拆分，\n只是基于几何位置的初步分析。\n\n要获得真正的爆炸效果，\n仍然建议在 Blender 中手动拆分。`);
+      }, 500);
+    }
+
+    // 动画
+    function animate() {
+      requestAnimationFrame(animate);
+      controls.update();
+      renderer.render(scene, camera);
+    }
+
+    // 事件
+    startBtn.onclick = smartSplit;
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // 开始加载
+    loadModel();
+  </script>
+</body>
+</html>

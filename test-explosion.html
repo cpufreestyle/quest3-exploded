@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>自定义模型爆炸调试</title>
+  <style>
+    body {
+      font-family: -apple-system, sans-serif;
+      padding: 20px;
+      background: #1a1a2e;
+      color: #e6e6e6;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    h1 { color: #4a9eff; }
+    .info {
+      background: rgba(74, 158, 255, 0.1);
+      padding: 15px;
+      border-radius: 8px;
+      margin: 15px 0;
+      border-left: 3px solid #4a9eff;
+    }
+    .warn {
+      background: rgba(255, 193, 7, 0.1);
+      padding: 15px;
+      border-radius: 8px;
+      margin: 15px 0;
+      border-left: 3px solid #ffc107;
+    }
+    button {
+      background: linear-gradient(135deg, #4a9eff, #8f7aff);
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      cursor: pointer;
+      margin: 5px;
+      font-size: 14px;
+    }
+    button:hover { opacity: 0.9; }
+    #log {
+      background: rgba(0,0,0,0.3);
+      padding: 15px;
+      border-radius: 8px;
+      margin: 15px 0;
+      max-height: 400px;
+      overflow-y: auto;
+      font-family: monospace;
+      font-size: 12px;
+      line-height: 1.6;
+    }
+    .log-entry { margin: 3px 0; }
+    .log-success { color: #4caf50; }
+    .log-error { color: #ff6b6b; }
+    .log-warn { color: #ffc107; }
+    .log-info { color: #4a9eff; }
+  </style>
+</head>
+<body>
+  <h1>🔍 自定义模型爆炸调试</h1>
+
+  <div class="info">
+    <strong>💡 说明：</strong>这个页面帮助调试自定义模型的爆炸效果
+  </div>
+
+  <div class="warn">
+    <strong>⚠️  关于你的模型：</strong><br>
+    • 模型名称：quest3分解.glb<br>
+    • 部件数量：2 个<br>
+    • ⚠️  只有 2 个部件时，爆炸效果可能<strong>不明显</strong><br>
+    • 原因：部件少 + 距离近 → 爆炸幅度小
+  </div>
+
+  <button onclick="testExplosion()">🧪 测试爆炸计算</button>
+  <button onclick="clearLog()">🗑️ 清除日志</button>
+  <button onclick="window.location.href='http://127.0.0.1:8080/'">🎮 返回主程序</button>
+
+  <div id="log"></div>
+
+  <script type="module">
+    import * as THREE from './vendor/three.module.js?v=1783166736';
+
+    const logDiv = document.getElementById('log');
+
+    function log(msg, type = 'info') {
+      const div = document.createElement('div');
+      div.className = `log-entry log-${type}`;
+      const time = new Date().toLocaleTimeString();
+      div.textContent = `[${time}] ${msg}`;
+      logDiv.appendChild(div);
+      logDiv.scrollTop = logDiv.scrollHeight;
+      console.log(msg);
+    }
+
+    function clearLog() {
+      logDiv.innerHTML = '';
+    }
+
+    // 测试爆炸计算
+    window.testExplosion = async function() {
+      clearLog();
+      log('🧪 开始测试自定义模型爆炸计算...\n');
+
+      try {
+        // 导入 GLTFLoader
+        log('1️⃣  导入 GLTFLoader...');
+        const module = await import('./vendor/GLTFLoader.js');
+        const GLTFLoader = module.GLTFLoader;
+        const loader = new GLTFLoader();
+        log('   ✅ GLTFLoader 就绪\n');
+
+        // 加载模型
+        log('2️⃣  加载 Quest3.glb...');
+        const response = await fetch('./models/Quest3.glb');
+        const arrayBuffer = await response.arrayBuffer();
+        log(`   ✅ 文件大小: ${(arrayBuffer.byteLength / 1024 / 1024).toFixed(2)} MB\n`);
+
+        // 解析
+        log('3️⃣  解析 GLB...');
+        const gltf = await new Promise((resolve, reject) => {
+          loader.parse(arrayBuffer, '', resolve, (err) => reject(err));
+        });
+        log(`   ✅ 解析成功: ${gltf.scene.children.length} 个子对象\n`);
+
+        // 分析部件
+        log('4️⃣  分析部件...');
+        const model = gltf.scene;
+        const box = new THREE.Box3().setFromObject(model);
+        const center = box.getCenter(new THREE.Vector3());
+        const size = new THREE.Vector3();
+        box.getSize(size);
+
+        log(`   📐 包围盒尺寸:`);
+        log(`      X: ${size.x.toFixed(3)}`);
+        log(`      Y: ${size.y.toFixed(3)}`);
+        log(`      Z: ${size.z.toFixed(3)}`);
+        log(`      最大维度: ${Math.max(size.x, size.y, size.z).toFixed(3)}\n`);
+
+        log(`   📍 包围盒中心: (${center.x.toFixed(3)}, ${center.y.toFixed(3)}, ${center.z.toFixed(3)})\n`);
+
+        // 遍历所有 Mesh
+        let meshCount = 0;
+        const parts = [];
+
+        model.traverse((child) => {
+          if (child.isMesh) {
+            meshCount++;
+            const worldPos = new THREE.Vector3();
+            child.getWorldPosition(worldPos);
+
+            const homePos = worldPos.clone().sub(center);
+            const distFromCenter = worldPos.distanceTo(center);
+            const explodeDir = worldPos.clone().sub(center).normalize();
+            const explodeDist = Math.max(distFromCenter * 5, 0.5);
+            const explodePos = explodeDir.multiplyScalar(explodeDist);
+
+            parts.push({
+              name: child.name || `部件 ${meshCount}`,
+              worldPos: worldPos.toArray().map(v => v.toFixed(3)),
+              homePos: homePos.toArray().map(v => v.toFixed(3)),
+              distFromCenter: distFromCenter.toFixed(3),
+              explodeDist: explodeDist.toFixed(3),
+              explodePos: explodePos.toArray().map(v => v.toFixed(3))
+            });
+          }
+        });
+
+        log(`   📦 找到 ${meshCount} 个部件\n`);
+
+        // 显示每个部件的爆炸信息
+        parts.forEach((part, i) => {
+          log(`   部件 ${i + 1}: ${part.name}`);
+          log(`      世界坐标: (${part.worldPos.join(', ')})`);
+          log(`      距中心: ${part.distFromCenter}`);
+          log(`      爆炸距离: ${part.explodeDist} ← 这是爆炸幅度！`);
+          log(`      爆炸后坐标: (${part.explodePos.join(', ')})\n`);
+        });
+
+        // 评估爆炸效果
+        log('5️⃣  爆炸效果评估:');
+        const avgDist = parts.reduce((sum, p) => sum + parseFloat(p.distFromCenter), 0) / parts.length;
+        const avgExplode = parts.reduce((sum, p) => sum + parseFloat(p.explodeDist), 0) / parts.length;
+
+        log(`   平均距中心距离: ${avgDist.toFixed(3)}`);
+        log(`   平均爆炸距离: ${avgExplode.toFixed(3)}\n`);
+
+        if (avgExplode < 0.3) {
+          log('⚠️  警告：爆炸距离 < 0.3，效果会很不明显！', 'warn');
+          log('   建议：上传部件更多、分布更广的模型', 'warn');
+        } else if (avgExplode < 0.5) {
+          log('⚠️  注意：爆炸距离 < 0.5，效果可能不明显', 'warn');
+          log('   建议：尝试拖动"爆炸深度"滑块到最大', 'warn');
+        } else {
+          log('✅ 爆炸距离正常，应该能看到明显效果', 'success');
+        }
+
+        log('\n💡 结论:');
+        log(`   你的模型只有 ${meshCount} 个部件`);
+        if (meshCount <= 2) {
+          log('   ⚠️  2 个部件的模型爆炸效果天生不明显', 'warn');
+          log('   建议：上传至少 5-10 个部件的模型以获得更好的爆炸效果', 'warn');
+        }
+
+      } catch (err) {
+        log(`\n❌ 测试失败: ${err.message}`, 'error');
+        console.error(err);
+      }
+    };
+
+    // 页面加载时自动测试
+    setTimeout(() => {
+      log('页面加载完成，开始自动测试...\n');
+      testExplosion();
+    }, 500);
+  </script>
+</body>
+</html>

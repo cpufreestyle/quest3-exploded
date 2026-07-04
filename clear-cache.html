@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>清除缓存并重新加载</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: linear-gradient(135deg, #0a0c12 0%, #1a1b23 100%);
+      color: #e6e6e6;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .container {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 16px;
+      padding: 40px;
+      max-width: 600px;
+      width: 100%;
+      backdrop-filter: blur(10px);
+      text-align: center;
+    }
+    h1 {
+      color: #4a9eff;
+      margin-bottom: 20px;
+    }
+    .message {
+      font-size: 16px;
+      line-height: 1.6;
+      margin: 20px 0;
+    }
+    .steps {
+      text-align: left;
+      margin: 20px 0;
+      padding: 20px;
+      background: rgba(255, 255, 255, 0.03);
+      border-radius: 8px;
+    }
+    .steps ol {
+      margin-left: 20px;
+      line-height: 2;
+    }
+    button {
+      background: linear-gradient(135deg, #4a9eff 0%, #8f7aff 100%);
+      color: white;
+      border: none;
+      padding: 15px 30px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: 500;
+      margin: 10px;
+      transition: all 0.3s ease;
+    }
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(74, 158, 255, 0.4);
+    }
+    .tip {
+      background: rgba(255, 193, 7, 0.1);
+      border-left: 3px solid #ffc107;
+      padding: 15px;
+      margin: 20px 0;
+      border-radius: 6px;
+      text-align: left;
+    }
+    .success {
+      background: rgba(76, 175, 80, 0.1);
+      border-left: 3px solid #4caf50;
+      padding: 15px;
+      margin: 20px 0;
+      border-radius: 6px;
+      display: none;
+    }
+    .error {
+      background: rgba(255, 107, 107, 0.1);
+      border-left: 3px solid #ff6b6b;
+      padding: 15px;
+      margin: 20px 0;
+      border-radius: 6px;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔄 清除浏览器缓存</h1>
+
+    <div class="message">
+      遇到 <strong style="color: #ff6b6b;">loader.parse is not a function</strong> 错误？<br>
+      这通常是因为浏览器缓存了旧版本的 JavaScript 文件。
+    </div>
+
+    <div class="steps">
+      <strong>📋 手动清除缓存步骤：</strong>
+      <ol>
+        <li>打开浏览器开发者工具（<strong>F12</strong> 或 <strong>Cmd+Option+I</strong>）</li>
+        <li>右键点击刷新按钮 🔄</li>
+        <li>选择 <strong>"清空缓存并硬性重新加载"</strong></li>
+        <li>等待页面重新加载完成</li>
+      </ol>
+    </div>
+
+    <div class="tip">
+      <strong>💡 快捷键：</strong><br>
+      • Mac: <kbd>Cmd</kbd> + <kbd>Shift</kbd> + <kbd>R</kbd><br>
+      • Windows/Linux: <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>R</kbd><br>
+      • 或者: <kbd>Cmd</kbd> + <kbd>Option</kbd> + <kbd>E</kbd> (Mac) 清空缓存
+    </div>
+
+    <button onclick="hardReload()">🔄 硬性重新加载</button>
+    <button onclick="openMainApp()">🎮 打开主程序</button>
+    <button onclick="openIncognito()">🕵️ 无痕模式打开</button>
+
+    <div id="success" class="success">
+      ✅ 缓存已清除！正在重新加载...
+    </div>
+
+    <div id="error" class="error">
+      ⚠️ 无法自动清除缓存，请使用手动方法
+    </div>
+  </div>
+
+  <script>
+    function hardReload() {
+      const success = document.getElementById('success');
+      const error = document.getElementById('error');
+
+      // 尝试清除缓存
+      if ('caches' in window) {
+        caches.keys().then(names => {
+          for (let name of names) {
+            caches.delete(name);
+          }
+          success.style.display = 'block';
+          setTimeout(() => {
+            window.location.reload(true);
+          }, 1000);
+        }).catch(() => {
+          showError();
+        });
+      } else {
+        // 直接硬性重新加载
+        success.style.display = 'block';
+        setTimeout(() => {
+          window.location.reload(true);
+        }, 1000);
+      }
+    }
+
+    function showError() {
+      const error = document.getElementById('error');
+      error.style.display = 'block';
+    }
+
+    function openMainApp() {
+      window.location.href = '/';
+    }
+
+    function openIncognito() {
+      // 提示用户手动打开无痕模式
+      const message = '请手动打开无痕模式：\n\n' +
+        'Chrome: Cmd+Shift+N (Mac) 或 Ctrl+Shift+N (Windows)\n' +
+        'Firefox: Cmd+Shift+P (Mac) 或 Ctrl+Shift+P (Windows)\n' +
+        'Safari: Cmd+Shift+N (Mac)\n\n' +
+        '然后在无痕窗口中访问:\n' +
+        'http://127.0.0.1:8080/';
+
+      alert(message);
+    }
+
+    // 页面加载时自动尝试清除缓存
+    window.addEventListener('load', () => {
+      console.log('💡 提示：如果遇到错误，请点击"硬性重新加载"按钮');
+    });
+  </script>
+</body>
+</html>

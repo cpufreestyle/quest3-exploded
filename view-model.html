@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quest 3 模型查看器 - 简化版</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #0a0c12;
+      color: #e6e6e6;
+      overflow: hidden;
+    }
+    #canvas-container {
+      width: 100vw;
+      height: 100vh;
+    }
+    #info {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      background: rgba(15, 16, 22, 0.95);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(74, 158, 255, 0.3);
+      border-radius: 12px;
+      padding: 20px;
+      max-width: 400px;
+      z-index: 100;
+    }
+    h1 {
+      color: #4a9eff;
+      font-size: 24px;
+      margin-bottom: 16px;
+    }
+    .info-item {
+      margin: 8px 0;
+      font-size: 14px;
+    }
+    .info-label {
+      color: #8b8d98;
+      font-weight: 500;
+    }
+    button {
+      background: linear-gradient(135deg, #4a9eff, #8f7aff);
+      color: white;
+      border: none;
+      padding: 10px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      margin-top: 10px;
+      width: 100%;
+    }
+    button:hover {
+      opacity: 0.9;
+    }
+    #loading {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      z-index: 200;
+    }
+    .spinner {
+      width: 60px;
+      height: 60px;
+      border: 4px solid rgba(74, 158, 255, 0.2);
+      border-top-color: #4a9eff;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 20px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #error {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(255, 107, 107, 0.95);
+      color: white;
+      padding: 20px 30px;
+      border-radius: 12px;
+      font-size: 16px;
+      z-index: 200;
+      max-width: 500px;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="loading">
+    <div class="spinner"></div>
+    <div style="font-size: 18px; color: #4a9eff; margin-bottom: 10px;">正在加载 Quest 3 模型</div>
+    <div style="font-size: 14px; color: #8b8d98;">8.2 MB - 请稍候...</div>
+    <div id="progress" style="margin-top: 10px; color: #4caf50; font-size: 13px;"></div>
+  </div>
+
+  <div id="canvas-container"></div>
+
+  <div id="info">
+    <h1>🎮 Quest 3 模型</h1>
+    <div class="info-item">
+      <span class="info-label">状态：</span>
+      <span id="status">初始化...</span>
+    </div>
+    <div class="info-item">
+      <span class="info-label">文件：</span>
+      <span>Quest3.glb (8.2 MB)</span>
+    </div>
+    <div class="info-item">
+      <span class="info-label">操作：</span><br>
+      <span style="font-size: 12px; color: #8b8d98;">
+        • 左键拖动：旋转<br>
+        • 右键拖动：平移<br>
+        • 滚轮：缩放
+      </span>
+    </div>
+    <button id="reset-btn">🔄 重置视角</button>
+    <button id="auto-rotate-btn">⏸️ 暂停旋转</button>
+  </div>
+
+  <div id="error"></div>
+
+  <script type="module">
+    import * as THREE from './vendor/three.module.js?v=1783166735';
+    import { OrbitControls } from './vendor/OrbitControls.js?v=1783166735';
+
+    // 动态导入 GLTFLoader
+    let GLTFLoader = null;
+    async function loadGLTFLoader() {
+      if (!GLTFLoader) {
+        const module = await import('./vendor/GLTFLoader.js?v=1783166735');
+        GLTFLoader = module.GLTFLoader;
+      }
+      return GLTFLoader;
+    }
+
+    const container = document.getElementById('canvas-container');
+    const loadingEl = document.getElementById('loading');
+    const errorEl = document.getElementById('error');
+    const statusEl = document.getElementById('status');
+    const progressEl = document.getElementById('progress');
+    const resetBtn = document.getElementById('reset-btn');
+    const autoRotateBtn = document.getElementById('auto-rotate-btn');
+
+    function log(msg) {
+      console.log(msg);
+      if (progressEl) progressEl.textContent = msg;
+    }
+
+    // 场景
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0a0c12);
+
+    // 相机
+    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+    camera.position.set(3, 2, 3);
+
+    // 渲染器
+    log('创建渲染器...');
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    container.appendChild(renderer.domElement);
+
+    // 控制器
+    log('初始化控制器...');
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.autoRotate = true;
+
+    // 灯光
+    log('设置灯光...');
+    scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+    const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+    dirLight.position.set(5, 10, 7);
+    scene.add(dirLight);
+
+    // 加载模型
+    let model = null;
+
+    async function load() {
+      try {
+        statusEl.textContent = '下载中...';
+        statusEl.style.color = '#ffc107';
+        log('开始下载 Quest3.glb...');
+
+        const response = await fetch('./models/Quest3.glb');
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+        const arrayBuffer = await response.arrayBuffer();
+        const sizeMB = (arrayBuffer.byteLength / 1024 / 1024).toFixed(2);
+        log(`✅ 下载完成: ${sizeMB} MB`);
+
+        statusEl.textContent = '解析中...';
+        statusEl.style.color = '#ffc107';
+        log('解析 GLB 文件...');
+
+        const LoaderClass = await loadGLTFLoader();
+      const loader = new LoaderClass();
+        const gltf = await new Promise((resolve, reject) => {
+          loader.parse(arrayBuffer, '', resolve, (err) => {
+            reject(new Error('GLB 解析失败: ' + err.message));
+          });
+        });
+
+        log('✅ 解析完成');
+        model = gltf.scene;
+
+        // 统计
+        let count = 0;
+        model.traverse(() => count++);
+        log(`发现 ${count} 个对象`);
+
+        // 居中
+        const box = new THREE.Box3().setFromObject(model);
+        const center = new THREE.Vector3();
+        box.getCenter(center);
+        model.position.sub(center);
+        scene.add(model);
+
+        // 调整相机
+        const size = new THREE.Vector3();
+        box.getSize(size);
+        const maxDim = Math.max(size.x, size.y, size.z);
+        const dist = maxDim / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2));
+        camera.position.set(dist * 1.2, dist * 0.8, dist * 1.2);
+        controls.target.set(0, 0, 0);
+        controls.update();
+
+        // 完成
+        loadingEl.style.display = 'none';
+        statusEl.textContent = '✅ 已加载';
+        statusEl.style.color = '#4caf50';
+
+        alert(`✅ Quest 3 模型加载成功！\n\n📊 统计：\n• 对象数量: ${count}\n• 尺寸: ${size.x.toFixed(1)} × ${size.y.toFixed(1)} × ${size.z.toFixed(1)}\n\n现在可以旋转、缩放查看模型了！`);
+
+        log('🚀 开始渲染...');
+        animate();
+
+      } catch (err) {
+        console.error('❌ 错误:', err);
+        loadingEl.style.display = 'none';
+        errorEl.textContent = `加载失败：${err.message}\n\n请刷新页面重试`;
+        errorEl.style.display = 'block';
+        statusEl.textContent = '❌ 失败';
+        statusEl.style.color = '#ff6b6b';
+      }
+    }
+
+    // 按钮
+    resetBtn.onclick = () => {
+      camera.position.set(3, 2, 3);
+      controls.target.set(0, 0, 0);
+    };
+
+    autoRotateBtn.onclick = () => {
+      controls.autoRotate = !controls.autoRotate;
+      autoRotateBtn.textContent = controls.autoRotate ? '⏸️ 暂停旋转' : '▶️ 开始旋转';
+    };
+
+    window.onresize = () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    };
+
+    // 开始加载
+    log('准备就绪，开始加载...');
+    load();
+
+    // 渲染循环
+    function animate() {
+      requestAnimationFrame(animate);
+      controls.update();
+      renderer.render(scene, camera);
+    }
+  </script>
+</body>
+</html>
