@@ -1,0 +1,90 @@
+{
+  "description": "Quest 3 风格场景配置",
+  "clear_scene": true,
+  "objects": [
+    {
+      "type": "cube",
+      "name": "Body",
+      "size": 2.0,
+      "location": [0, 0, 0.5],
+      "rotation": [0, 0, 0],
+      "material": {
+        "color": [0.12, 0.12, 0.13, 1.0],
+        "metallic": 0.0,
+        "roughness": 0.6
+      }
+    },
+    {
+      "type": "cube",
+      "name": "Front",
+      "size": 1.8,
+      "location": [0, 0.1, 0.5],
+      "rotation": [0, 0, 0],
+      "material": {
+        "color": [0.97, 0.97, 0.97, 1.0],
+        "metallic": 0.02,
+        "roughness": 0.35
+      }
+    },
+    {
+      "type": "cylinder",
+      "name": "Lens_Left",
+      "radius": 0.35,
+      "depth": 0.3,
+      "location": [-0.5, 0.5, 0.5],
+      "material": {
+        "color": [0.1, 0.18, 0.29, 1.0],
+        "metallic": 0.55,
+        "roughness": 0.2
+      }
+    },
+    {
+      "type": "cylinder",
+      "name": "Lens_Right",
+      "radius": 0.35,
+      "depth": 0.3,
+      "location": [0.5, 0.5, 0.5],
+      "material": {
+        "color": [0.1, 0.18, 0.29, 1.0],
+        "metallic": 0.55,
+        "roughness": 0.2
+      }
+    },
+    {
+      "type": "sphere",
+      "name": "Camera_Sensor",
+      "radius": 0.15,
+      "location": [0, -0.9, 0.5],
+      "segments": 16,
+      "material": {
+        "color": [0.05, 0.05, 0.05, 1.0],
+        "metallic": 0.8,
+        "roughness": 0.2
+      }
+    }
+  ],
+  "animations": [
+    {
+      "object": "Front",
+      "property": "location",
+      "start_value": [0, 0.1, 0.5],
+      "end_value": [0, 0.3, 0.5],
+      "start_frame": 1,
+      "end_frame": 50
+    },
+    {
+      "object": "Front",
+      "property": "location",
+      "start_value": [0, 0.3, 0.5],
+      "end_value": [0, 0.1, 0.5],
+      "start_frame": 50,
+      "end_frame": 100
+    }
+  ],
+  "render": {
+    "resolution_x": 1920,
+    "resolution_y": 1080,
+    "start_frame": 1,
+    "end_frame": 100
+  }
+}
