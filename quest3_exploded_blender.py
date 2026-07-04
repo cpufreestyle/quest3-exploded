@@ -52,8 +52,10 @@ def create_materials():
     bsdf.inputs['Base Color'].default_value = (0.97, 0.97, 0.97, 1.0)
     bsdf.inputs['Roughness'].default_value = 0.35
     bsdf.inputs['Metallic'].default_value = 0.02
-    bsdf.inputs['Clearcoat'].default_value = 0.5
-    bsdf.inputs['Clearcoat Roughness'].default_value = 0.2
+    # Clearcoat 在某些版本可能不可用
+    if 'Clearcoat' in bsdf.inputs:
+        bsdf.inputs['Clearcoat'].default_value = 0.5
+        bsdf.inputs['Clearcoat Roughness'].default_value = 0.2
     materials['frontPlate'] = mat
 
     # 黑色主机身（哑光塑料）
@@ -72,8 +74,9 @@ def create_materials():
     bsdf.inputs['Base Color'].default_value = (0.1, 0.18, 0.29, 1.0)
     bsdf.inputs['Roughness'].default_value = 0.2
     bsdf.inputs['Metallic'].default_value = 0.55
-    bsdf.inputs['Clearcoat'].default_value = 0.9
-    bsdf.inputs['Clearcoat Roughness'].default_value = 0.1
+    if 'Clearcoat' in bsdf.inputs:
+        bsdf.inputs['Clearcoat'].default_value = 0.9
+        bsdf.inputs['Clearcoat Roughness'].default_value = 0.1
     materials['lensBarrel'] = mat
 
     # 透镜玻璃（透明蓝色）
