@@ -40,3 +40,4 @@ build/
 # Test coverage
 coverage/
 .vercel
+__pycache__/
