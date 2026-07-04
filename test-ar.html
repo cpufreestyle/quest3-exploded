@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AR 模式快速测试</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: linear-gradient(135deg, #0a0c12 0%, #1a1b23 100%);
+      color: #e6e6e6;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 16px;
+      padding: 30px;
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    h1 {
+      color: #4a9eff;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+    .test-section {
+      background: rgba(255, 255, 255, 0.03);
+      border-radius: 12px;
+      padding: 20px;
+      margin: 15px 0;
+      border-left: 3px solid #4a9eff;
+    }
+    .test-item {
+      margin: 10px 0;
+      padding: 10px;
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .status {
+      font-weight: bold;
+      padding: 5px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+    }
+    .status.pass { background: #4caf50; color: white; }
+    .status.fail { background: #ff6b6b; color: white; }
+    .status.pending { background: #ffc107; color: black; }
+    button {
+      background: linear-gradient(135deg, #4a9eff, #8f7aff);
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      width: 100%;
+      margin: 5px 0;
+      transition: opacity 0.3s;
+    }
+    button:hover { opacity: 0.9; }
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .ar-btn {
+      background: linear-gradient(135deg, #00d4aa, #00b894);
+      font-size: 16px;
+      padding: 15px 30px;
+      margin-top: 20px;
+    }
+    .info {
+      background: rgba(74, 158, 255, 0.1);
+      border-left: 3px solid #4a9eff;
+      padding: 15px;
+      border-radius: 8px;
+      margin: 15px 0;
+    }
+    .warn {
+      background: rgba(255, 193, 7, 0.1);
+      border-left: 3px solid #ffc107;
+      padding: 15px;
+      border-radius: 8px;
+      margin: 15px 0;
+    }
+    .error {
+      background: rgba(255, 107, 107, 0.1);
+      border-left: 3px solid #ff6b6b;
+      padding: 15px;
+      border-radius: 8px;
+      margin: 15px 0;
+    }
+    .success {
+      background: rgba(76, 175, 80, 0.1);
+      border-left: 3px solid #4caf50;
+      padding: 15px;
+      border-radius: 8px;
+      margin: 15px 0;
+    }
+    #log {
+      background: rgba(0,0,0,0.3);
+      padding: 15px;
+      border-radius: 8px;
+      margin: 15px 0;
+      max-height: 300px;
+      overflow-y: auto;
+      font-family: monospace;
+      font-size: 12px;
+      line-height: 1.6;
+    }
+    .log-entry { margin: 3px 0; }
+    .log-success { color: #4caf50; }
+    .log-error { color: #ff6b6b; }
+    .log-warn { color: #ffc107; }
+    .log-info { color: #4a9eff; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🧪 AR 模式测试</h1>
+
+    <div class="info">
+      <strong>📱 设备要求：</strong><br>
+      • Android Chrome 79+<br>
+      • iOS Safari 15+<br>
+      • ❌ 桌面浏览器不支持
+    </div>
+
+    <div class="warn">
+      <strong>⚠️  重要：</strong><br>
+      必须使用 <strong>HTTPS</strong> 访问！<br>
+      本页面通过 Vercel 自动提供 HTTPS。
+    </div>
+
+    <button onclick="runAllTests()">🔍 运行所有测试</button>
+    <button onclick="openMainApp()">🎮 打开主程序</button>
+
+    <div class="test-section">
+      <h3>📊 测试结果</h3>
+      <div id="test-results"></div>
+    </div>
+
+    <div id="log"></div>
+  </div>
+
+  <script type="module">
+    import * as THREE from './vendor/three.module.js';
+
+    const logDiv = document.getElementById('log');
+    const resultsDiv = document.getElementById('test-results');
+
+    function log(msg, type = 'info') {
+      const div = document.createElement('div');
+      div.className = `log-entry log-${type}`;
+      const time = new Date().toLocaleTimeString();
+      div.textContent = `[${time}] ${msg}`;
+      logDiv.appendChild(div);
+      logDiv.scrollTop = logDiv.scrollHeight;
+      console.log(msg);
+    }
+
+    function clearLog() {
+      logDiv.innerHTML = '';
+    }
+
+    function addResult(name, status, message = '') {
+      const div = document.createElement('div');
+      div.className = 'test-item';
+      div.innerHTML = `
+        <span>${name}</span>
+        <span class="status ${status}">${status === 'pass' ? '✅' : status === 'fail' ? '❌' : '⏳'} ${status === 'pass' ? '通过' : status === 'fail' ? '失败' : '待测'}</span>
+      `;
+      if (message) {
+        div.title = message;
+      }
+      resultsDiv.appendChild(div);
+    }
+
+    function clearResults() {
+      resultsDiv.innerHTML = '';
+    }
+
+    // 测试 1: WebXR API 支持
+    window.testWebXR = async function() {
+      clearResults();
+      log('🧪 开始 AR 功能测试...\n');
+
+      // 测试 1: WebXR API
+      log('1️⃣  检测 WebXR API...');
+      const hasWebXR = 'xr' in navigator;
+      addResult('WebXR API', hasWebXR ? 'pass' : 'fail',
+        hasWebXR ? '浏览器支持 WebXR' : '浏览器不支持 WebXR');
+      log(`   ${hasWebXR ? '✅' : '❌'} WebXR API: ${hasWebXR}`);
+
+      if (!hasWebXR) {
+        log('   ❌ 浏览器不支持 WebXR，请使用：', 'error');
+        log('   • Android: Chrome 79+', 'error');
+        log('   • iOS: Safari 15+', 'error');
+        return;
+      }
+
+      // 测试 2: AR 会话支持
+      log('\n2️⃣  检测 AR 会话支持...');
+      let arSupported = false;
+      try {
+        arSupported = await navigator.xr.isSessionSupported('immersive-ar');
+        addResult('AR 会话支持', arSupported ? 'pass' : 'fail',
+          arSupported ? '设备支持 AR' : '设备不支持 AR');
+        log(`   ${arSupported ? '✅' : '❌'} AR supported: ${arSupported}`);
+      } catch (err) {
+        addResult('AR 会话支持', 'fail', err.message);
+        log(`   ❌ 检测失败: ${err.message}`, 'error');
+      }
+
+      if (!arSupported) {
+        log('   ❌ 设备不支持 AR，请使用：', 'error');
+        log('   • Android 7+ + Chrome 79+', 'error');
+        log('   • iOS 15+ + Safari', 'error');
+        log('   • 必须使用 HTTPS', 'error');
+        return;
+      }
+
+      // 测试 3: HTTPS
+      log('\n3️⃣  检测 HTTPS...');
+      const isHTTPS = location.protocol === 'https:';
+      addResult('HTTPS 连接', isHTTPS ? 'pass' : 'fail',
+        isHTTPS ? '使用 HTTPS（正确）' : '未使用 HTTPS（WebXR 需要 HTTPS）');
+      log(`   ${isHTTPS ? '✅' : '❌'} Protocol: ${location.protocol}`);
+
+      // 测试 4: 屏幕方向
+      log('\n4️⃣  检测屏幕方向...');
+      const isPortrait = window.innerHeight > window.innerWidth;
+      addResult('屏幕方向', isPortrait ? 'pass' : 'pending',
+        isPortrait ? '竖屏（推荐）' : '横屏（可用但不推荐）');
+      log(`   ${isPortrait ? '✅' : '⚠️'}  ${isPortrait ? '竖屏' : '横屏'} (${window.innerWidth}×${window.innerHeight})`);
+
+      // 测试 5: 用户 Agent
+      log('\n5️⃣  检测浏览器信息...');
+      const ua = navigator.userAgent;
+      let browserName = 'Unknown';
+      if (ua.includes('Chrome')) browserName = 'Chrome';
+      else if (ua.includes('Safari')) browserName = 'Safari';
+      else if (ua.includes('Firefox')) browserName = 'Firefox';
+
+      addResult('浏览器', 'pass', browserName);
+      log(`   ✅ Browser: ${browserName}`);
+
+      // 测试 6: 内存（如果可用）
+      log('\n6️⃣  检测设备内存...');
+      if (navigator.deviceMemory) {
+        const memory = navigator.deviceMemory;
+        const memoryOK = memory >= 4;
+        addResult('设备内存', memoryOK ? 'pass' : 'pending',
+          `${memory}GB RAM ${memoryOK ? '(充足)' : '(可能不足)'}`);
+        log(`   ${memoryOK ? '✅' : '⚠️'}  Memory: ${memory}GB`);
+      } else {
+        addResult('设备内存', 'pending', '无法检测');
+        log('   ⚠️  无法检测内存');
+      }
+
+      // 总结
+      log('\n✅ 测试完成！', 'success');
+      if (hasWebXR && arSupported && isHTTPS) {
+        log('\n🎉 你的设备支持 AR 功能！', 'success');
+        log('   请访问主程序并点击 "📱 AR 预览" 按钮', 'success');
+      } else {
+        log('\n⚠️  你的设备不完全支持 AR', 'warn');
+        log('   请检查上述失败的测试项', 'warn');
+      }
+    };
+
+    // 打开主程序
+    window.openMainApp = function() {
+      window.location.href = '/';
+    };
+
+    // 页面加载时自动运行测试
+    window.addEventListener('load', () => {
+      log('页面加载完成，准备测试...\n');
+      setTimeout(runAllTests, 500);
+    });
+
+    window.runAllTests = testWebXR;
+  </script>
+</body>
+</html>
