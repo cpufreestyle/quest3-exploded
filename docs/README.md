@@ -2,7 +2,7 @@
 
 基于 Three.js 的交互式 3D 拆解教学预览工具，支持爆炸视图、AI 智能爆炸、自定义模型上传、WebXR AR 预览、**Blender Python API 自动化集成**。
 
-**当前版本**：[v1.5.0](RELEASE_NOTES_v1.5.0.md) | **状态**：✅ Stable | **更新**：2026-07-05
+**当前版本**：[v1.9.0](RELEASE_NOTES_v1.9.0.md) | **状态**：✅ Stable | **更新**：2026-07-06
 
 ## ✨ 核心功能
 
@@ -79,6 +79,19 @@ npx vite
 然后打开 http://localhost:8080。
 
 ## 📋 版本历史
+
+### [v1.9.0](RELEASE_NOTES_v1.9.0.md) (2026-07-06)
+- 🏗️ **系统架构重构 — 11 项工程化改进**
+  - 二进制流传输（废弃 Base64，节省 33% 带宽与内存）
+  - ES 模块化拆分（`src/quest3-data.js` + `src/quest3-steps.js`）
+  - 前后端共享配置（`quest3_config.json` 统一坐标模板）
+  - 端到端自动化测试（`npm test`）
+  - 代码规范工具链（ESLint + Prettier）
+  - 服务器变量作用域 Bug 修复
+  - 非破坏性占位策略（修复模型几何破损）
+  - Multipart 安全校验（文件名消毒、长度限制等）
+  - 临时文件自动清理
+  - 项目目录规范化（50+ 文件归入 `docs/`、`scripts/`、`tests/`）
 
 ### [v1.5.0](RELEASE_NOTES_v1.5.0.md) (2026-07-05)
 - 🐛 **AR 功能与自定义模型 Bug 修复**
