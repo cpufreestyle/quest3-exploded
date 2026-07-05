@@ -1,6 +1,6 @@
-# Quest 3 爆炸拆解 3D 视图
+# Blender 自动拆解三维模型并自动做拆解教学
 
-基于 Three.js 的 Meta Quest 3 交互式 3D 拆解教学工具，支持爆炸视图、AI 智能爆炸、自定义模型上传、WebXR AR 预览、**Blender Python API 自动化集成**。
+基于 Three.js 的交互式 3D 拆解教学预览工具，支持爆炸视图、AI 智能爆炸、自定义模型上传、WebXR AR 预览、**Blender Python API 自动化集成**。
 
 **当前版本**：[v1.5.0](RELEASE_NOTES_v1.5.0.md) | **状态**：✅ Stable | **更新**：2026-07-05
 
