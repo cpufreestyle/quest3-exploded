@@ -2,7 +2,7 @@
 
 基于 Three.js 的 Meta Quest 3 交互式 3D 拆解教学工具，支持爆炸视图、AI 智能爆炸、自定义模型上传、WebXR AR 预览、**Blender Python API 自动化集成**。
 
-**当前版本**：[v1.4.0](RELEASE_NOTES_v1.4.0.md) | **状态**：✅ Stable | **更新**：2026-07-04
+**当前版本**：[v1.5.0](RELEASE_NOTES_v1.5.0.md) | **状态**：✅ Stable | **更新**：2026-07-05
 
 ## ✨ 核心功能
 
@@ -79,6 +79,15 @@ npx vite
 然后打开 http://localhost:8080。
 
 ## 📋 版本历史
+
+### [v1.5.0](RELEASE_NOTES_v1.5.0.md) (2026-07-05)
+- 🐛 **AR 功能与自定义模型 Bug 修复**
+  - 修复 AR 按钮事件从未绑定（按钮无法点击）
+  - 修复 AR hit-test source 未初始化（模型无法放置）
+  - 修复 AR 渲染循环误改原始场景 mesh
+  - 修复自定义模型 autoScale 双重缩放
+  - 移除渲染循环 console.log 性能问题
+  - 修复 onAREnd 递归风险
 
 ### [v1.4.0](RELEASE_NOTES_v1.4.0.md) (2026-07-04)
 - ✨ **Blender Python API 集成系统**

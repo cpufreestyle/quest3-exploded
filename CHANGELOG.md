@@ -2,6 +2,50 @@
 
 所有项目的显著变更都将记录在此文件中。
 
+## [v1.5.0] - 2026-07-05
+
+### 🐛 Bug 修复
+
+#### 🔴 严重修复（3 个）
+
+- **AR 按钮点击事件从未绑定**
+  - 问题：`arButton` 在模块顶层检查时为 `null`（`initAR()` 异步未完成），事件监听器从未绑定，AR 按钮无法点击
+  - 修复：将事件绑定移入 `initAR()` 中，在 `arButton` 赋值之后绑定
+
+- **AR hit-test source 从未初始化**
+  - 问题：`arHitTestSource` 始终为 `null`，`getHitTestResults(null)` 始终失败，AR 模型无法放置
+  - 修复：在 `setSession()` 后通过 `requestReferenceSpace('viewer')` + `requestHitTestSource()` 正确初始化
+
+- **AR 渲染循环修改了原始场景的 mesh**
+  - 问题：AR 克隆了模型但渲染循环修改原始 `parts` 的 mesh，导致 AR 爆炸无效且污染原始场景
+  - 修复：建立 `cloneMeshMap` 创建 `arParts` 引用克隆 mesh
+
+#### 🟡 中等修复（4 个）
+
+- **renderer.domElement 无效赋值 + 未使用变量**
+  - 修复：移除 `renderer.domElement = arRenderer.domElement` 无效赋值，移除 `canvas`、`sessionSpace`、`arHitMatrix` 未使用变量
+
+- **渲染循环中的 console.log 性能问题**
+  - 问题：`updateExplodedView()` 每帧执行 2 处 `console.log`，加载自定义模型后严重拖慢性能
+  - 修复：移除渲染循环中所有调试日志
+
+- **onAREnd 潜在递归与未捕获异常**
+  - 修复：添加 `arEnding` 防重入标志，`try-catch` 包裹清理逻辑，正确取消 hit-test source
+
+- **自定义模型 autoScale 双重缩放**
+  - 问题：`homePos` 手动缩放 + `customModelGroup.scale` 缩放导致位置被缩放 \( autoScale^2 \) 倍，`explodePos` 未转换局部空间
+  - 修复：移除手动缩放循环，重计算 `explodePos` 时除以 `groupScale`
+
+### 📊 统计
+
+```
+Bug 修复: 7 个（严重 3 + 中等 4）
+代码变更: +69/-54 行
+影响文件: 1 个（main.js）
+```
+
+---
+
 ## [v1.4.0] - 2026-07-04
 
 ### ✨ 新功能
