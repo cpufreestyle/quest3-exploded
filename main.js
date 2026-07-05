@@ -586,17 +586,11 @@ async function loadCustomModel(arrayBuffer, fileName) {
     }
 
     if (autoScale > 1.0) {
-      // 放大模型位置（爆炸距离将在后面由智能计算更新）
-      for (let i = 0; i < customModelParts.length; i++) {
-        customModelParts[i].homePos.multiplyScalar(autoScale);
-      }
-
-      // 缩放模型组
+      // 缩放模型组（几何体和局部位置会自动随之缩放，无需手动缩放 homePos）
       customModelGroup.scale.set(autoScale, autoScale, autoScale);
       // 调整位置：将放大后的模型中心移回原点
       customModelGroup.position.sub(autoCenter.clone().multiplyScalar(autoScale));
       console.log(`🔍 模型自动放大 ${autoScale.toFixed(1)} 倍（原始 ${autoMaxDim.toFixed(3)} → 放大后 ${(autoMaxDim * autoScale).toFixed(1)}）`);
-      console.log(`💥 爆炸距离将在适配相机后智能计算（模型 ${autoScale.toFixed(1)}×）`);
     }
 
     // 自动适配相机
@@ -605,13 +599,15 @@ async function loadCustomModel(arrayBuffer, fileName) {
     // ========== 智能调整爆炸距离（确保不飞出屏幕）==========
     // 等待一帧，确保相机和模型都已就位
     requestAnimationFrame(() => {
+      // 组缩放因子：smartDist 是世界空间距离，需转换为局部空间距离
+      const groupScale = customModelGroup.scale.x || 1;
       for (let i = 0; i < customModelParts.length; i++) {
         const part = customModelParts[i];
         const explodeDir = part.explodePos.clone().normalize();
-        // 计算智能爆炸距离
+        // 计算智能爆炸距离（世界空间）
         const smartDist = calculateSmartExplodeDist(customModelGroup, explodeDir);
-        // 更新爆炸坐标
-        part.explodePos.copy(explodeDir.multiplyScalar(smartDist));
+        // 转换为局部空间距离（因为 mesh.position 受 group.scale 影响）
+        part.explodePos.copy(explodeDir.multiplyScalar(smartDist / groupScale));
       }
       console.log('✅ 爆炸距离已智能调整（适应模型大小和相机位置）');
     });
@@ -1462,15 +1458,7 @@ function updateExplodedView(now) {
     // 使用与步骤动画相同的因子
     const customFactor = mouseControlEnabled ? mouseFactor : (currentStep / totalSteps);
 
-    console.log('💥 自定义模型爆炸更新:', {
-      hasCustomModel,
-      partCount: customModelParts.length,
-      customFactor,
-      currentStep,
-      totalSteps
-    });
-
-    customModelParts.forEach((part, index) => {
+    customModelParts.forEach((part) => {
       const startPos = part.homePos;
       const endPos = part.explodePos;
 
@@ -1479,15 +1467,6 @@ function updateExplodedView(now) {
       part.mesh.rotation.x = THREE.MathUtils.lerp(part.homeRot.x, part.explodeRot.x, customFactor);
       part.mesh.rotation.y = THREE.MathUtils.lerp(part.homeRot.y, part.explodeRot.y, customFactor);
       part.mesh.rotation.z = THREE.MathUtils.lerp(part.homeRot.z, part.explodeRot.z, customFactor);
-
-      // 调试第一个部件
-      if (index === 0) {
-        console.log('   部件 0:', {
-          start: startPos.toArray().map(v => v.toFixed(2)),
-          end: endPos.toArray().map(v => v.toFixed(2)),
-          current: part.mesh.position.toArray().map(v => v.toFixed(2))
-        });
-      }
     });
   }
 }
@@ -1683,8 +1662,8 @@ let arSession = null;
 let arButton = null;
 let arSupported = false;
 let arHitTestSource = null;
-let arHitMatrix = new THREE.Matrix4();
 let arModelPlaced = false;
+let arEnding = false; // 防止 onAREnd 重入
 
 // 检测 WebXR AR 支持
 async function checkARSupport() {
@@ -1756,9 +1735,7 @@ async function startAR() {
     arRenderer.xr.enabled = true;
     arRenderer.xr.setReferenceSpaceType('local-floor');
 
-    // 替换当前渲染器
-    const canvas = renderer.domElement;
-    renderer.domElement = arRenderer.domElement;
+    // 替换画布：移除原有 canvas，添加 AR 渲染器的 canvas
     container.innerHTML = '';
     container.appendChild(arRenderer.domElement);
 
@@ -1782,16 +1759,43 @@ async function startAR() {
     // 设置 AR 相机
     const arCamera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20);
 
-    // 启用 hit-test
+    // 启用 hit-test：先设置 session，再初始化 hit-test source
     session.addEventListener('end', onAREnd);
     await arRenderer.xr.setSession(session);
+
+    // 初始化 hit-test source（之前缺失，导致 getHitTestResults 始终失败）
+    try {
+      const viewerSpace = await session.requestReferenceSpace('viewer');
+      arHitTestSource = await session.requestHitTestSource({ space: viewerSpace });
+    } catch (err) {
+      console.warn('Hit-test source 初始化失败，模型将放置在默认位置:', err);
+    }
+
+    // 从 AR 克隆中收集部件引用（避免修改原始场景的 mesh）
+    const arParts = [];
+    const cloneMeshMap = new Map();
+    arQuestGroup.traverse((child) => {
+      if (child.isMesh && child.userData.name) {
+        cloneMeshMap.set(child.userData.name, child);
+      }
+    });
+    parts.forEach((part) => {
+      const clonedMesh = cloneMeshMap.get(part.name);
+      if (clonedMesh) {
+        arParts.push({
+          mesh: clonedMesh,
+          homePos: part.homePos,
+          explodePos: part.explodePos,
+          name: part.name,
+        });
+      }
+    });
 
     // AR 渲染循环
     arRenderer.setAnimationLoop((timestamp, frame) => {
       if (frame) {
         // 获取参考空间
         const referenceSpace = arRenderer.xr.getReferenceSpace();
-        const sessionSpace = arRenderer.xr.getSession();
 
         // 获取 viewer 空间
         const viewerPose = frame.getViewerPose(referenceSpace);
@@ -1800,9 +1804,11 @@ async function startAR() {
           // 更新相机
           const view = viewerPose.views[0];
           arCamera.projectionMatrix.fromArray(view.projectionMatrix);
+          arCamera.matrix.fromArray(view.transform.matrix);
+          arCamera.matrixWorldNeedsUpdate = true;
 
           // 如果模型未放置，执行 hit-test
-          if (!arModelPlaced && frame.getHitTestResults) {
+          if (!arModelPlaced && arHitTestSource && frame.getHitTestResults) {
             const hitTestResults = frame.getHitTestResults(arHitTestSource);
 
             if (hitTestResults.length > 0) {
@@ -1819,13 +1825,13 @@ async function startAR() {
             }
           }
 
-          // 如果模型已放置，添加简单的爆炸效果
+          // 如果模型已放置，添加简单的爆炸效果（使用 AR 克隆的部件）
           if (arModelPlaced) {
             const time = timestamp * 0.001;
             const explodeFactor = (Math.sin(time * 0.5) + 1) * 0.3;
 
-            // 应用爆炸变换
-            parts.forEach((part, index) => {
+            // 应用爆炸变换到 AR 克隆的部件（而非原始场景的部件）
+            arParts.forEach((part, index) => {
               const delay = index * 0.05;
               const factor = Math.max(0, Math.min(1, (explodeFactor - delay) * 2));
 
@@ -1858,16 +1864,26 @@ async function startAR() {
 
 // 结束 AR 会话
 function onAREnd() {
-  if (arSession) {
-    arSession.end();
-    arSession = null;
+  // 防止重入（'end' 事件可能在此函数执行过程中触发）
+  if (arEnding) return;
+  arEnding = true;
+
+  try {
+    if (arHitTestSource) {
+      arHitTestSource.cancel();
+      arHitTestSource = null;
+    }
+    if (arSession) {
+      arSession.end();
+      arSession = null;
+    }
     arModelPlaced = false;
+  } catch (err) {
+    console.error('结束 AR 会话时出错:', err);
   }
 
   // 恢复普通渲染器
   location.reload();
-
-  console.log('AR session ended');
 }
 
 // 初始化 AR
@@ -1876,6 +1892,16 @@ async function initAR() {
 
   if (supported) {
     arButton = document.getElementById('ar-btn');
+    if (arButton) {
+      // 绑定 AR 按钮事件（之前在模块顶层绑定，但此时 arButton 尚为 null，导致事件从未绑定）
+      arButton.addEventListener('click', () => {
+        if (arSession) {
+          onAREnd();
+        } else {
+          startAR();
+        }
+      });
+    }
     updateARButton();
   }
 }
@@ -1885,15 +1911,4 @@ if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', initAR);
 } else {
   initAR();
-}
-
-// 绑定 AR 按钮事件
-if (arButton) {
-  arButton.addEventListener('click', () => {
-    if (arSession) {
-      onAREnd();
-    } else {
-      startAR();
-    }
-  });
 }
