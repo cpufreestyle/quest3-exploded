@@ -1280,6 +1280,128 @@ def create_male_character():
     return parts
 
 
+def create_lego_style(prompt):
+    """乐高风格生成器 — 使用方块积木拼接风格创建模型"""
+    prompt_lower = prompt.lower()
+    parts = []
+
+    # 乐高经典颜色
+    lego_colors = {
+        '红': (0.8, 0.1, 0.1), '蓝': (0.1, 0.3, 0.8), '绿': (0.1, 0.6, 0.2),
+        '黄': (1.0, 0.8, 0.0), '白': (0.95, 0.95, 0.95), '黑': (0.1, 0.1, 0.1),
+        '橙': (0.9, 0.4, 0.05), '紫': (0.5, 0.1, 0.6), '粉': (0.9, 0.5, 0.7),
+        '灰': (0.5, 0.5, 0.5), '棕': (0.5, 0.3, 0.15),
+    }
+
+    # 检测颜色
+    base_color = (0.8, 0.1, 0.1)  # 默认红色
+    for kw, color in lego_colors.items():
+        if kw in prompt_lower:
+            base_color = color
+            break
+
+    # 乐高材质 — 塑料质感
+    mat_lego = make_mat('LegoMat', base_color, roughness=0.3, metallic=0.0)
+    mat_stud = make_mat('LegoStudMat', (base_color[0]*0.9, base_color[1]*0.9, base_color[2]*0.9), roughness=0.3)
+
+    # 创建乐高基础方块单元
+    def create_lego_brick(name, loc, size=(1, 1, 0.6), has_stud=True):
+        """创建一个乐高积木块"""
+        # 主体方块
+        bpy.ops.mesh.primitive_cube_add(size=1, location=loc)
+        brick = bpy.context.active_object
+        brick.scale = size
+        bpy.ops.object.transform_apply(scale=True)
+
+        # 添加倒角模拟乐高圆角
+        apply_bevel_mod(brick, width=0.02, segments=2)
+
+        parts.append(add_obj(brick, name, mat_lego))
+
+        # 添加顶部凸点 (stud)
+        if has_stud:
+            stud_count_x = max(1, int(size[0]))
+            stud_count_y = max(1, int(size[1]))
+            stud_radius = 0.12
+            stud_height = 0.15
+            spacing = 0.4
+
+            for i in range(stud_count_x):
+                for j in range(stud_count_y):
+                    sx = loc[0] + (i - (stud_count_x-1)/2) * spacing
+                    sy = loc[1] + (j - (stud_count_y-1)/2) * spacing
+                    sz = loc[2] + size[2]/2 + stud_height/2
+
+                    bpy.ops.mesh.primitive_cylinder_add(radius=stud_radius, depth=stud_height, location=(sx, sy, sz))
+                    stud = bpy.context.active_object
+                    apply_bevel_mod(stud, width=0.01, segments=1)
+                    parts.append(add_obj(stud, f'{name}_凸点_{i}_{j}', mat_stud))
+
+        return brick
+
+    # 根据提示词创建不同类型的乐高模型
+    if any(kw in prompt_lower for kw in ['人', '角色', '人物', 'character', 'person', 'human', 'figure', 'minifig']):
+        # 乐高人仔
+        # 腿部 (2个方块)
+        create_lego_brick('左腿', (-0.25, 0, 0.3), size=(0.4, 0.5, 0.6))
+        create_lego_brick('右腿', (0.25, 0, 0.3), size=(0.4, 0.5, 0.6))
+        # 身体
+        create_lego_brick('身体', (0, 0, 0.9), size=(0.9, 0.5, 0.6))
+        # 手臂
+        create_lego_brick('左臂', (-0.6, 0, 0.9), size=(0.3, 0.3, 0.5), has_stud=False)
+        create_lego_brick('右臂', (0.6, 0, 0.9), size=(0.3, 0.3, 0.5), has_stud=False)
+        # 头部 (圆柱形)
+        bpy.ops.mesh.primitive_cylinder_add(radius=0.35, depth=0.5, location=(0, 0, 1.45))
+        head = bpy.context.active_object
+        apply_bevel_mod(head, width=0.03, segments=2)
+        parts.append(add_obj(head, '头部', mat_lego))
+        # 头顶凸点
+        bpy.ops.mesh.primitive_cylinder_add(radius=0.12, depth=0.15, location=(0, 0, 1.75))
+        top_stud = bpy.context.active_object
+        parts.append(add_obj(top_stud, '头顶凸点', mat_stud))
+
+    elif any(kw in prompt_lower for kw in ['车', '汽车', 'car', 'vehicle', '跑车']):
+        # 乐高汽车
+        # 底盘
+        create_lego_brick('底盘', (0, 0, 0.3), size=(2.0, 1.0, 0.4))
+        # 车身
+        create_lego_brick('车身', (0, 0, 0.8), size=(1.6, 0.8, 0.6))
+        # 车顶
+        create_lego_brick('车顶', (0, 0, 1.3), size=(1.0, 0.7, 0.4))
+        # 轮子 (4个圆柱)
+        wheel_locs = [(-0.8, 0.5, 0.3), (0.8, 0.5, 0.3), (-0.8, -0.5, 0.3), (0.8, -0.5, 0.3)]
+        for i, wl in enumerate(wheel_locs):
+            bpy.ops.mesh.primitive_cylinder_add(radius=0.25, depth=0.2, location=wl)
+            wheel = bpy.context.active_object
+            wheel.rotation_euler = (1.5708, 0, 0)  # 90度旋转
+            bpy.ops.object.transform_apply(rotation=True)
+            parts.append(add_obj(wheel, f'轮子_{i+1}', mat_stud))
+
+    elif any(kw in prompt_lower for kw in ['房子', '建筑', 'house', 'building', 'home']):
+        # 乐高房子
+        # 地基
+        create_lego_brick('地基', (0, 0, 0.3), size=(2.0, 2.0, 0.6))
+        # 一层
+        create_lego_brick('一层', (0, 0, 0.9), size=(1.8, 1.8, 0.6))
+        # 二层
+        create_lego_brick('二层', (0, 0, 1.5), size=(1.4, 1.4, 0.6))
+        # 屋顶 (金字塔形堆叠)
+        create_lego_brick('屋顶_底', (0, 0, 2.0), size=(1.0, 1.0, 0.4))
+        create_lego_brick('屋顶_中', (0, 0, 2.4), size=(0.6, 0.6, 0.4))
+        create_lego_brick('屋顶_顶', (0, 0, 2.8), size=(0.3, 0.3, 0.4))
+        # 门
+        create_lego_brick('门', (0, 0.95, 0.6), size=(0.4, 0.1, 0.8), has_stud=False)
+
+    else:
+        # 默认：乐高积木组合
+        create_lego_brick('积木_1', (0, 0, 0.3), size=(1.0, 1.0, 0.6))
+        create_lego_brick('积木_2', (0.6, 0.3, 0.9), size=(0.8, 0.8, 0.5))
+        create_lego_brick('积木_3', (-0.5, 0.4, 1.3), size=(0.6, 0.6, 0.4))
+        create_lego_brick('积木_4', (0.2, -0.3, 1.6), size=(0.5, 0.5, 0.4))
+
+    return parts
+
+
 def create_generic_model(prompt):
     """根据提示词生成通用模型 — 关键词匹配"""
     prompt_lower = prompt.lower()
@@ -1430,6 +1552,13 @@ PROMPT_TEMPLATES = [
         'weight': 70,
         'creator': create_rocket,
         'desc': '火箭',
+    },
+    # === 乐高风格（中高优先级）===
+    {
+        'keywords': ['乐高', 'lego', '积木', 'brick', 'blocks', 'minifig'],
+        'weight': 75,
+        'creator': lambda: create_lego_style('乐高'),
+        'desc': '乐高风格模型',
     },
     # === 泛角色（低优先级兜底）===
     {
