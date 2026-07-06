@@ -25,9 +25,12 @@ def log(msg):
 
 
 def clear_scene():
-    """清空场景中所有对象、材质、网格"""
+    """清空场景中所有对象、材质、网格、相机、曲线、文字"""
+    # 删除所有对象
     bpy.ops.object.select_all(action='SELECT')
     bpy.ops.object.delete(use_global=False)
+    
+    # 清除所有数据块
     for mat in list(bpy.data.materials):
         bpy.data.materials.remove(mat)
     for mesh in list(bpy.data.meshes):
@@ -36,6 +39,18 @@ def clear_scene():
         bpy.data.lights.remove(light)
     for cam in list(bpy.data.cameras):
         bpy.data.cameras.remove(cam)
+    for curve in list(bpy.data.curves):
+        bpy.data.curves.remove(curve)
+    for text in list(bpy.data.texts):
+        bpy.data.texts.remove(text)
+    for armature in list(bpy.data.armatures):
+        bpy.data.armatures.remove(armature)
+    for gpencil in list(bpy.data.grease_pencils):
+        bpy.data.grease_pencils.remove(gpencil)
+    
+    # 强制垃圾回收
+    import gc
+    gc.collect()    
 
 
 def make_mat(name, color, roughness=0.5, metallic=0.0, emission=None, emission_strength=0.0,
