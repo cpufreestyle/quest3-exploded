@@ -630,10 +630,73 @@ const server = http.createServer(async (req, res) => {
     await handleSplit(req, res);
   } else if (req.method === 'POST' && url.pathname === '/api/ai-paint') {
     await handleAIPaint(req, res);
+  } else if (req.method === 'GET') {
+    serveStatic(req, res, url);
   } else {
     sendJSON(res, 404, { error: 'Not Found', path: url.pathname });
   }
 });
+
+// ── 静态文件服务 ──────────────────────────────────────
+
+const MIME_TYPES = {
+  '.html': 'text/html; charset=utf-8',
+  '.js': 'text/javascript; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.svg': 'image/svg+xml',
+  '.ico': 'image/x-icon',
+  '.glb': 'model/gltf-binary',
+  '.gltf': 'model/gltf+json',
+  '.woff': 'font/woff',
+  '.woff2': 'font/woff2',
+  '.ttf': 'font/ttf',
+  '.wasm': 'application/wasm',
+};
+
+function serveStatic(req, res, url) {
+  let pathname = decodeURIComponent(url.pathname);
+  
+  // 安全：防止路径遍历
+  if (pathname.includes('..')) {
+    sendJSON(res, 403, { error: 'Forbidden' });
+    return;
+  }
+
+  // 默认 index.html
+  if (pathname === '/' || pathname === '') {
+    pathname = '/index.html';
+  }
+
+  const filePath = path.join(__dirname, pathname);
+
+  // 确保文件在 __dirname 下
+  if (!filePath.startsWith(__dirname)) {
+    sendJSON(res, 403, { error: 'Forbidden' });
+    return;
+  }
+
+  fs.readFile(filePath, (err, data) => {
+    if (err) {
+      sendJSON(res, 404, { error: 'Not Found', path: pathname });
+      return;
+    }
+
+    const ext = path.extname(filePath).toLowerCase();
+    const contentType = MIME_TYPES[ext] || 'application/octet-stream';
+
+    res.writeHead(200, {
+      'Content-Type': contentType,
+      'Cache-Control': 'no-cache',
+      'Content-Length': data.length,
+    });
+    res.end(data);
+  });
+}
 
 // ── 启动 ──────────────────────────────────────────────
 
@@ -644,6 +707,7 @@ server.listen(PORT, () => {
   console.log(`  🎨 Blender: ${BLENDER_PATH}`);
   console.log('═'.repeat(50));
   console.log('\n  端点:');
+  console.log(`    GET  /              — 静态文件 (index.html)`);
   console.log(`    GET  /api/health   — 健康检查`);
   console.log(`    POST /api/split    — 拆解 GLB（二进制响应）`);
   console.log(`    POST /api/ai-paint — AI 绘画（生成3D模型）\n`);

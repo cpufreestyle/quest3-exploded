@@ -24,10 +24,10 @@ html, body {
   top: 24px;
   left: 24px;
   z-index: 10;
-  width: 340px;
+  width: 360px;
   max-height: calc(100vh - 48px);
   overflow-y: auto;
-  padding: 24px;
+  padding: 20px;
   background: rgba(15, 16, 22, 0.85);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
@@ -35,6 +35,25 @@ html, body {
   border-radius: 18px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
   transition: background 0.3s ease, border-color 0.3s ease;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(129, 140, 248, 0.4) transparent;
+}
+
+.ui-overlay::-webkit-scrollbar {
+  width: 6px;
+}
+
+.ui-overlay::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.ui-overlay::-webkit-scrollbar-thumb {
+  background: rgba(129, 140, 248, 0.3);
+  border-radius: 3px;
+}
+
+.ui-overlay::-webkit-scrollbar-thumb:hover {
+  background: rgba(129, 140, 248, 0.5);
 }
 
 .ui-overlay.light-theme {
@@ -1126,9 +1145,9 @@ html, body {
 
 /* ===== AI 绘画面板 ===== */
 .ai-paint-section {
-  margin-bottom: 20px;
-  padding: 18px;
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(168, 85, 247, 0.08));
+margin-bottom: 16px;
+padding: 14px;
+background: linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(168, 85, 247, 0.08));
   border: 1px solid rgba(129, 140, 248, 0.3);
   border-radius: 14px;
   transition: background 0.3s ease, border-color 0.3s ease;
@@ -1154,9 +1173,9 @@ html, body {
 }
 
 .ai-paint-input-row {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 10px;
+display: flex;
+gap: 8px;
+margin-bottom: 8px;
 }
 
 .ai-paint-input {
@@ -1222,22 +1241,23 @@ html, body {
 .ai-paint-upload-row {
   display: flex;
   gap: 8px;
-  margin-bottom: 10px;
-  align-items: flex-start;
+  margin-bottom: 8px;
+  align-items: center;
 }
 
 .ai-paint-dropzone {
   flex: 1;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 14px;
+  gap: 6px;
+  padding: 8px 12px;
   background: rgba(99, 102, 241, 0.08);
   border: 2px dashed rgba(99, 102, 241, 0.3);
   border-radius: 10px;
   cursor: pointer;
   transition: all 0.2s;
-  min-height: 44px;
+  min-height: 38px;
+  overflow: hidden;
 }
 
 .ai-paint-dropzone:hover {
@@ -1256,11 +1276,12 @@ html, body {
 }
 
 .ai-paint-dropzone .dropzone-text {
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.7);
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.65);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  line-height: 1.3;
 }
 
 .ui-overlay.light-theme .ai-paint-dropzone {
@@ -1274,14 +1295,14 @@ html, body {
 
 .ai-paint-image-preview {
   position: relative;
-  width: 60px;
-  height: 60px;
+  width: 44px;
+  height: 44px;
   flex-shrink: 0;
 }
 
 .ai-paint-image-preview img {
-  width: 60px;
-  height: 60px;
+  width: 44px;
+  height: 44px;
   object-fit: cover;
   border-radius: 8px;
   border: 2px solid rgba(129, 140, 248, 0.4);
@@ -1324,12 +1345,12 @@ html, body {
 .ai-paint-presets {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  margin-bottom: 10px;
+  gap: 5px;
+  margin-bottom: 8px;
 }
 
 .ai-preset-btn {
-  padding: 6px 12px;
+  padding: 5px 10px;
   background: rgba(129, 140, 248, 0.1);
   border: 1px solid rgba(129, 140, 248, 0.2);
   border-radius: 8px;

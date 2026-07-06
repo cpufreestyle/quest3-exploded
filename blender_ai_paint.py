@@ -1480,6 +1480,359 @@ def match_prompt(prompt):
         return lambda: create_generic_model(prompt)
 
 
+# ===== 高级渲染特效 =====
+
+def setup_render_engine():
+    """配置渲染引擎 — Eevee 高质量设置（AO/Bloom/SSR/景深）"""
+    scene = bpy.context.scene
+
+    # 尝试使用 Eevee Next / Eevee
+    try:
+        scene.render.engine = 'BLENDER_EEVEE_NEXT'
+    except:
+        try:
+            scene.render.engine = 'BLENDER_EEVEE'
+        except:
+            pass
+
+    # 渲染分辨率
+    scene.render.resolution_x = 1920
+    scene.render.resolution_y = 1080
+    scene.render.resolution_percentage = 100
+
+    # 采样数
+    if hasattr(scene, 'eevee'):
+        eevee = scene.eevee
+        if hasattr(eevee, 'taa_render_samples'):
+            eevee.taa_render_samples = 64
+        if hasattr(eevee, 'taa_samples'):
+            eevee.taa_samples = 16
+        # 环境光遮蔽 (AO)
+        if hasattr(eevee, 'use_gtao'):
+            eevee.use_gtao = True
+            eevee.gtao_distance = 0.2
+        # 屏幕空间反射 (SSR)
+        if hasattr(eevee, 'use_ssr'):
+            eevee.use_ssr = True
+            eevee.use_ssr_refraction = True
+        # 辉光 (Bloom) — Eevee 4.x
+        if hasattr(eevee, 'use_bloom'):
+            eevee.use_bloom = True
+            eevee.bloom_intensity = 0.05
+            eevee.bloom_threshold = 0.8
+        # 软阴影
+        if hasattr(eevee, 'use_soft_shadows'):
+            eevee.use_soft_shadows = True
+        # 体积光
+        if hasattr(eevee, 'use_volumetric'):
+            eevee.use_volumetric = True
+            eevee.volumetric_tile_size = 8
+        # 色彩管理
+        scene.view_settings.view_transform = 'Filmic'
+        scene.view_settings.look = 'Medium High Contrast'
+
+    log("  ✅ 渲染引擎已配置 (Eevee + AO + SSR + Bloom + Filmic)")
+
+
+def setup_studio_lighting():
+    """三点布光系统 — Key/Fill/Rim 三盏灯打造专业影棚效果"""
+    # 清除现有灯光
+    for obj in list(bpy.data.objects):
+        if obj.type == 'LIGHT':
+            bpy.data.objects.remove(obj, do_unlink=True)
+
+    # === Key Light（主光）— 右上前方，暖色 ===
+    bpy.ops.object.light_add(type='AREA', location=(4, -3, 5))
+    key = bpy.context.active_object
+    key.name = 'Key_Light'
+    key.data.energy = 800
+    key.data.size = 3.0
+    key.data.color = (1.0, 0.95, 0.85)  # 暖白
+    key.data.use_shadow = True
+    if hasattr(key.data, 'shadow_soft_size'):
+        key.data.shadow_soft_size = 2.0
+    key.rotation_euler = (math.radians(50), math.radians(15), math.radians(35))
+
+    # === Fill Light（补光）— 左前方，冷色，弱 ===
+    bpy.ops.object.light_add(type='AREA', location=(-4, -2, 3))
+    fill = bpy.context.active_object
+    fill.name = 'Fill_Light'
+    fill.data.energy = 300
+    fill.data.size = 4.0
+    fill.data.color = (0.8, 0.85, 1.0)  # 冷蓝
+    fill.data.use_shadow = True
+    if hasattr(fill.data, 'shadow_soft_size'):
+        fill.data.shadow_soft_size = 3.0
+    fill.rotation_euler = (math.radians(60), math.radians(-10), math.radians(-30))
+
+    # === Rim Light（轮廓光）— 后上方，窄束 ===
+    bpy.ops.object.light_add(type='SPOT', location=(0, 4, 4))
+    rim = bpy.context.active_object
+    rim.name = 'Rim_Light'
+    rim.data.energy = 600
+    rim.data.spot_size = math.radians(50)
+    rim.data.spot_blend = 0.4
+    rim.data.color = (1.0, 1.0, 1.0)
+    rim.data.use_shadow = False  # 轮廓光不投影
+    rim.rotation_euler = (math.radians(130), 0, math.radians(180))
+
+    # === 底部补光 — 消除死黑阴影 ===
+    bpy.ops.object.light_add(type='AREA', location=(0, 0, -3))
+    bottom = bpy.context.active_object
+    bottom.name = 'Bottom_Fill'
+    bottom.data.energy = 100
+    bottom.data.size = 5.0
+    bottom.data.color = (0.9, 0.9, 1.0)
+    bottom.rotation_euler = (math.radians(180), 0, 0)
+
+    log("  ✅ 三点布光已设置 (Key 800W + Fill 300W + Rim 600W + Bottom 100W)")
+
+
+def setup_world_environment():
+    """设置世界环境 — 程序化天空 + 渐变背景"""
+    world = bpy.context.scene.world
+    if not world:
+        world = bpy.data.worlds.new('World')
+        bpy.context.scene.world = world
+
+    world.use_nodes = True
+    nodes = world.node_tree.nodes
+    links = world.node_tree.links
+
+    # 清除现有节点
+    for node in list(nodes):
+        nodes.remove(node)
+
+    # 创建节点
+    bg = nodes.new('ShaderNodeBackground')
+    bg.location = (0, 0)
+    bg.inputs['Strength'].default_value = 0.3  # 柔和环境光
+
+    # 渐变纹理模拟天空
+    ramp = nodes.new('ShaderNodeValToRGB')
+    ramp.location = (-300, 0)
+    ramp.color_ramp.elements[0].color = (0.02, 0.03, 0.06, 1)  # 底部深蓝
+    ramp.color_ramp.elements[1].color = (0.1, 0.12, 0.18, 1)   # 顶部蓝灰
+
+    tex_coord = nodes.new('ShaderNodeTexCoord')
+    tex_coord.location = (-700, 0)
+
+    map_node = nodes.new('ShaderNodeMapping')
+    map_node.location = (-500, 0)
+    map_node.inputs['Rotation'].default_value = (0, 0, 0)
+
+    links.new(tex_coord.outputs['Generated'], map_node.inputs['Vector'])
+    links.new(map_node.outputs['Vector'], ramp.inputs['Fac'])
+    links.new(ramp.outputs['Color'], bg.inputs['Color'])
+
+    out = nodes.new('ShaderNodeOutputWorld')
+    out.location = (200, 0)
+    links.new(bg.outputs['Background'], out.inputs['Surface'])
+
+    log("  ✅ 世界环境已设置 (程序化天空渐变)")
+
+
+def add_bevel_to_all(width=0.015, segments=3):
+    """给所有网格对象添加倒角 — 让硬边缘更真实"""
+    count = 0
+    for obj in bpy.data.objects:
+        if obj.type != 'MESH':
+            continue
+        # 跳过已有 Bevel 的
+        if any(m.type == 'BEVEL' for m in obj.modifiers):
+            continue
+        # 跳过太小的对象
+        if not obj.data.vertices:
+            continue
+
+        mod = obj.modifiers.new(name='EnhanceBevel', type='BEVEL')
+        mod.width = width
+        mod.segments = segments
+        mod.limit_method = 'ANGLE'
+        mod.angle_limit = math.radians(30)
+        count += 1
+
+    log(f"  ✅ 倒角已添加 ({count} 个对象, 宽度={width}, 段数={segments})")
+
+
+def apply_weighted_normals():
+    """应用加权法线 — 让曲面着色更平滑、更真实"""
+    count = 0
+    for obj in bpy.data.objects:
+        if obj.type != 'MESH':
+            continue
+        bpy.ops.object.select_all(action='DESELECT')
+        obj.select_set(True)
+        bpy.context.view_layer.objects.active = obj
+
+        # Weighted Normals 修改器
+        if not any(m.type == 'WEIGHTED_NORMAL' for m in obj.modifiers):
+            mod = obj.modifiers.new(name='WeightedNormals', type='WEIGHTED_NORMAL')
+            mod.weight = 50
+            if hasattr(mod, 'sharp_angle'):
+                mod.sharp_angle = math.radians(25)
+            count += 1
+
+        # 自动平滑
+        if hasattr(obj.data, 'use_auto_smooth'):
+            obj.data.use_auto_smooth = True
+            obj.data.auto_smooth_angle = math.radians(35)
+
+    log(f"  ✅ 加权法线已应用 ({count} 个对象)")
+
+
+def add_procedural_detail():
+    """为有机形状添加程序化纹理位移 — 增加表面微观细节"""
+    count = 0
+    for obj in bpy.data.objects:
+        if obj.type != 'MESH':
+            continue
+        # 跳过已有 Displace 的
+        if any(m.type == 'DISPLACE' for m in obj.modifiers):
+            continue
+        # 跳过太小的对象
+        if len(obj.data.vertices) < 20:
+            continue
+
+        # 创建 Noise 纹理（比 Clouds 更细腻）
+        tex = bpy.data.textures.new(name=f'{obj.name}_noise_tex', type='STUCCI')
+        tex.noise_scale = 0.15
+        tex.turbulence = 2.0
+
+        # 先添加细分（让位移有足够顶点）
+        if not any(m.type == 'SUBSURF' for m in obj.modifiers):
+            subsurf = obj.modifiers.new(name='DetailSubsurf', type='SUBSURF')
+            subsurf.levels = 1
+            subsurf.render_levels = 2
+
+        # 位移修改器
+        mod = obj.modifiers.new(name='DetailDisplace', type='DISPLACE')
+        mod.texture = tex
+        mod.strength = 0.008
+        mod.mid_level = 0.5
+        count += 1
+
+    log(f"  ✅ 程序化纹理位移已添加 ({count} 个对象)")
+
+
+def enhance_all_materials():
+    """增强所有材质 — 添加程序化法线贴图和清漆"""
+    count = 0
+    for mat in bpy.data.materials:
+        if not mat.use_nodes:
+            continue
+        bsdf = mat.node_tree.nodes.get('Principled BSDF')
+        if not bsdf:
+            continue
+
+        nodes = mat.node_tree.nodes
+        links = mat.node_tree.links
+
+        # 添加 Noise 纹理 → 法线贴图（微观凹凸）
+        has_normal = False
+        for link in links:
+            if link.to_node == bsdf and link.to_socket == bsdf.inputs.get('Normal'):
+                has_normal = True
+                break
+
+        if not has_normal and 'Normal' in bsdf.inputs:
+            noise = nodes.new('ShaderNodeTexNoise')
+            noise.location = (-400, -200)
+            noise.inputs['Scale'].default_value = 80
+            noise.inputs['Detail'].default_value = 4
+            noise.inputs['Roughness'].default_value = 0.6
+
+            normal_map = nodes.new('ShaderNodeNormalMap')
+            normal_map.location = (-200, -200)
+            normal_map.inputs['Strength'].default_value = 0.3
+
+            links.new(noise.outputs['Fac'], normal_map.inputs['Color'])
+            links.new(normal_map.outputs['Normal'], bsdf.inputs['Normal'])
+            count += 1
+
+        # 给非金属材质加少量清漆（光泽涂层）
+        metallic = bsdf.inputs.get('Metallic')
+        if metallic and metallic.default_value < 0.3:
+            for cc_key in ['Coat Weight', 'Clearcoat']:
+                if cc_key in bsdf.inputs:
+                    if bsdf.inputs[cc_key].default_value < 0.1:
+                        bsdf.inputs[cc_key].default_value = 0.15
+                    break
+            for cr_key in ['Coat Roughness', 'Clearcoat Roughness']:
+                if cr_key in bsdf.inputs:
+                    bsdf.inputs[cr_key].default_value = 0.1
+                    break
+
+    log(f"  ✅ 材质已增强 ({count} 个材质添加法线贴图+清漆)")
+
+
+def add_ground_shadow_catcher():
+    """添加地面阴影捕捉器 — 让模型有接地感"""
+    # 添加一个平面作为地面
+    bpy.ops.mesh.primitive_plane_add(size=20, location=(0, 0, -1.5))
+    ground = bpy.context.active_object
+    ground.name = 'ShadowCatcher_Ground'
+
+    # 阴影捕捉材质
+    mat = bpy.data.materials.new(name='ShadowCatcher_Mat')
+    mat.use_nodes = True
+    nodes = mat.node_tree.nodes
+    links = mat.node_tree.links
+
+    # 清除默认节点
+    for node in list(nodes):
+        nodes.remove(node)
+
+    # 透明阴影捕捉
+    if hasattr(mat, 'shadow_method'):
+        mat.shadow_method = 'NONE'
+    if hasattr(mat, 'blend_method'):
+        mat.blend_method = 'HASHED'
+
+    bsdf = nodes.new('ShaderNodeBsdfPrincipled')
+    bsdf.inputs['Alpha'].default_value = 0.0
+    bsdf.inputs['Roughness'].default_value = 1.0
+
+    out = nodes.new('ShaderNodeOutputMaterial')
+    links.new(bsdf.outputs['BSDF'], out.inputs['Surface'])
+
+    ground.data.materials.append(mat)
+    ground.hide_render = False
+
+    log("  ✅ 地面阴影捕捉器已添加")
+
+
+def enhance_scene():
+    """一键增强场景 — 综合所有高级特效"""
+    log("\n  🎬 开始应用高级渲染特效...")
+
+    # 1. 渲染引擎设置
+    setup_render_engine()
+
+    # 2. 世界环境
+    setup_world_environment()
+
+    # 3. 三点布光
+    setup_studio_lighting()
+
+    # 4. 倒角（让所有边缘圆润）
+    add_bevel_to_all(width=0.012, segments=4)
+
+    # 5. 加权法线
+    apply_weighted_normals()
+
+    # 6. 程序化位移细节
+    add_procedural_detail()
+
+    # 7. 增强材质
+    enhance_all_materials()
+
+    # 8. 阴影捕捉地面
+    add_ground_shadow_catcher()
+
+    log("  🎬 高级渲染特效全部应用完成！\n")
+
+
 # ===== 后处理 =====
 
 def post_process_scene():
@@ -1510,7 +1863,20 @@ def post_process_scene():
 # ===== GLB 导出 =====
 
 def export_glb(output_path):
-    """导出场景为 GLB"""
+    """导出场景为 GLB — 含修改器应用、灯光、材质"""
+    # 先应用所有修改器（确保倒角/位移/细分等效果烘焙到网格中）
+    for obj in bpy.data.objects:
+        if obj.type == 'MESH':
+            bpy.ops.object.select_all(action='DESELECT')
+            obj.select_set(True)
+            bpy.context.view_layer.objects.active = obj
+            # 逐个应用修改器
+            for mod in list(obj.modifiers):
+                try:
+                    bpy.ops.object.modifier_apply(modifier=mod.name)
+                except:
+                    pass
+
     # 确保所有对象都被选中
     bpy.ops.object.select_all(action='SELECT')
     bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
@@ -1520,13 +1886,18 @@ def export_glb(output_path):
         export_format='GLB',
         use_selection=False,
         export_apply=True,
+        export_yup=True,
+        export_materials='EXPORT',
+        export_cameras=False,
+        export_extras=False,
     )
-    log(f"  GLB 导出完成: {output_path}")
+    log(f"  GLB 导出完成（含修改器烘焙）: {output_path}")
 
 
 def compute_manifest():
     """计算 manifest"""
-    meshes = [obj for obj in bpy.data.objects if obj.type == 'MESH']
+    # 排除地面阴影捕捉器
+    meshes = [obj for obj in bpy.data.objects if obj.type == 'MESH' and 'ShadowCatcher' not in obj.name]
     manifest = {"parts": []}
 
     if not meshes:
@@ -1782,6 +2153,9 @@ def main():
         if IMAGE_FEATURES:
             apply_image_colors_to_scene()
             apply_image_shape_influence()
+
+        # 2.7 应用高级渲染特效（倒角/法线/纹理/灯光/环境）
+        enhance_scene()
 
         # 3. 导出 GLB
         export_glb(output_path)
