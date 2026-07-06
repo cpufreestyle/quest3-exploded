@@ -71,8 +71,33 @@
       <button id="theme-toggle" class="theme-toggle" title="切换主题">🌙</button>
     </div>
 
-    <!-- ===== 自定义模型上传（最显眼位置）===== -->
-    <div class="upload-section featured">
+    <!-- ===== AI 绘画面板 ===== -->
+    <div class="ai-paint-section">
+      <div class="ai-paint-header">
+        <span>🎨</span>
+        <span>AI 绘画 — 输入提示词生成3D模型</span>
+      </div>
+      <div class="ai-paint-input-row">
+        <input type="text" id="ai-paint-prompt" class="ai-paint-input" placeholder="例如：红色球体、篮球、机器人、汽车、火箭..." />
+        <button id="ai-paint-btn" class="step-btn ai-paint-btn">✨ 生成</button>
+      </div>
+      <div class="ai-paint-presets">
+        <button class="ai-preset-btn" data-prompt="红色球体">🔴 球体</button>
+        <button class="ai-preset-btn" data-prompt="篮球">🏀 篮球</button>
+        <button class="ai-preset-btn" data-prompt="Quest 3 VR头显">🕶️ Quest 3</button>
+        <button class="ai-preset-btn" data-prompt="机器人">🤖 机器人</button>
+        <button class="ai-preset-btn" data-prompt="汽车">🚗 汽车</button>
+        <button class="ai-preset-btn" data-prompt="房子">🏠 房子</button>
+        <button class="ai-preset-btn" data-prompt="人物角色">🧑 角色</button>
+        <button class="ai-preset-btn" data-prompt="火箭">🚀 火箭</button>
+        <button class="ai-preset-btn" data-prompt="飞机">✈️ 飞机</button>
+      </div>
+      <div id="ai-paint-status" class="ai-paint-status hidden"></div>
+      <div id="ai-paint-gallery" class="ai-paint-gallery"></div>
+    </div>
+
+    <!-- ===== 自定义模型上传 ===== -->
+    <div class="upload-section">
       <div class="upload-header">
         <span>📁</span>
         <span>上传你自己的 3D 模型</span>
@@ -200,6 +225,6 @@
     <p class="hint">🎓 专为 VR 新手设计 · 点击"下一步"开始学习</p>
   </div>
 
-  <script type="module" src="main.js?v=1.9.0"></script>
+  <script type="module" src="main.js?v=2.2.0"></script>
 </body>
 </html>

@@ -83,23 +83,80 @@ cleanupOldTempFiles();
 // ── 工具函数 ──────────────────────────────────────────
 
 /**
- * 在系统中查找 Blender 可执行文件
+ * 在系统中查找 Blender 可执行文件（跨平台支持）
+ * 检测顺序：环境变量 > macOS > Linux > Windows > PATH
  */
 function findBlender() {
-  const candidates = [
-    '/Applications/Blender.app/Contents/MacOS/Blender',
-    '/usr/bin/blender',
-    '/usr/local/bin/blender',
-    '/snap/bin/blender',
-    'blender', // 依赖 PATH
-  ];
+  const platform = os.platform();
+  const candidates = [];
+
+  if (platform === 'darwin') {
+    // macOS — /Applications, ~/Applications, Homebrew
+    candidates.push(
+      '/Applications/Blender.app/Contents/MacOS/Blender',
+      '/Applications/Blender.app/Contents/MacOS/blender',
+      path.join(os.homedir(), 'Applications/Blender.app/Contents/MacOS/Blender'),
+      '/opt/homebrew/bin/blender',
+      '/usr/local/bin/blender',
+    );
+  } else if (platform === 'linux') {
+    candidates.push(
+      '/usr/bin/blender',
+      '/usr/local/bin/blender',
+      '/snap/bin/blender',
+      '/opt/blender/blender',
+      path.join(os.homedir(), '.local/bin/blender'),
+    );
+  } else if (platform === 'win32') {
+    // Windows — Program Files, scoop, chocolatey
+    const programFiles = process.env['ProgramFiles'] || 'C:\\Program Files';
+    const programFilesX86 = process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)';
+    candidates.push(
+      path.join(programFiles, 'Blender Foundation', 'Blender', 'blender.exe'),
+      path.join(programFilesX86, 'Blender Foundation', 'Blender', 'blender.exe'),
+      path.join(os.homedir(), 'scoop', 'apps', 'blender', 'current', 'blender.exe'),
+      path.join('C:\\', 'ProgramData', 'chocolatey', 'bin', 'blender.exe'),
+    );
+  }
+
+  // 最后回退到 PATH 中的 blender
+  candidates.push('blender');
+
   for (const c of candidates) {
     try {
       if (c === 'blender') return c; // 依赖 PATH 解析
-      if (fs.existsSync(c)) return c;
+      if (fs.existsSync(c)) {
+        console.log(`  🔍 检测到 Blender: ${c}`);
+        return c;
+      }
     } catch { /* ignore */ }
   }
+  console.log('  ⚠️  未找到 Blender 可执行文件，将使用 PATH 中的 blender');
   return 'blender';
+}
+
+/**
+ * 调用 Blender CLI 进行 AI 绘画（生成模型）
+ */
+async function runBlenderAIPaint(prompt, outputPath, manifestPath) {
+  const scriptPath = path.join(__dirname, 'blender_ai_paint.py');
+  const args = [
+    '--background',
+    '--python', scriptPath,
+    '--',
+    '--prompt', prompt,
+    '--output', outputPath,
+    '--manifest', manifestPath,
+  ];
+
+  console.log(`  🎨 AI 绘画: ${BLENDER_PATH} ${args.join(' ')}`);
+
+  const { stdout, stderr } = await execFileAsync(BLENDER_PATH, args, {
+    timeout: 120_000, // 2 分钟超时
+    maxBuffer: 50 * 1024 * 1024,
+  });
+
+  return { stdout, stderr };
 }
 
 /**
@@ -313,6 +370,118 @@ function sendBinaryResult(res, glbBuffer, manifest, elapsed) {
 // ── 路由处理 ──────────────────────────────────────────
 
 /**
+ * AI 绘画 — 根据提示词生成3D模型
+ * POST /api/ai-paint
+ * Body: { "prompt": "红色球体" }
+ * 返回：二进制 GLB + manifest 头（同 /api/split 格式）
+ */
+async function handleAIPaint(req, res) {
+  const startTime = Date.now();
+  let blenderStdout = '';
+  let blenderStderr = '';
+
+  try {
+    // 1. 读取 JSON body
+    const body = await readJSONBody(req);
+    const prompt = body.prompt || '球体';
+
+    if (typeof prompt !== 'string' || prompt.length > 500) {
+      sendJSON(res, 400, { error: '提示词无效或过长（最多500字符）' });
+      return;
+    }
+
+    console.log(`\n🎨 AI 绘画请求: "${prompt}"`);
+
+    // 2. 临时文件路径
+    const jobId = `ai-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const outputPath = path.join(UPLOAD_DIR, `ai-output-${jobId}.glb`);
+    const manifestPath = path.join(UPLOAD_DIR, `ai-manifest-${jobId}.json`);
+
+    try {
+      // 3. 调用 Blender 生成模型
+      try {
+        const result = await runBlenderAIPaint(prompt, outputPath, manifestPath);
+        blenderStdout = result.stdout || '';
+        blenderStderr = result.stderr || '';
+      } catch (berr) {
+        blenderStdout = berr.stdout || '';
+        blenderStderr = berr.stderr || berr.message || '';
+      }
+
+      if (blenderStdout) console.log(`  📤 Blender stdout:\n${blenderStdout.slice(0, 3000)}`);
+      if (blenderStderr) console.log(`  📤 Blender stderr:\n${blenderStderr.slice(0, 3000)}`);
+
+      // 4. 检查输出
+      if (!fs.existsSync(outputPath)) {
+        const detail = (blenderStderr || blenderStdout || '').slice(0, 3000);
+        throw new Error(`Blender 未生成 GLB 文件。日志:\n${detail}`);
+      }
+      if (!fs.existsSync(manifestPath)) {
+        const detail = (blenderStderr || blenderStdout || '').slice(0, 3000);
+        throw new Error(`Blender 未生成 manifest。日志:\n${detail}`);
+      }
+
+      // 5. 读取结果
+      const outputBuffer = fs.readFileSync(outputPath);
+      const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'));
+
+      const elapsed = ((Date.now() - startTime) / 1000).toFixed(2);
+      console.log(`  ✅ AI 绘画完成: ${manifest.total_parts} 个部件 (${elapsed}s, ${(outputBuffer.length / 1024).toFixed(1)} KB)`);
+
+      // 6. 返回二进制 GLB + manifest 头
+      sendBinaryResult(res, outputBuffer, manifest, elapsed);
+
+    } finally {
+      // 清理临时文件
+      [outputPath, manifestPath].forEach(f => {
+        try { fs.unlinkSync(f); } catch { /* ignore */ }
+      });
+    }
+
+  } catch (err) {
+    console.error(`  ❌ AI 绘画失败: ${err.message}`);
+    sendJSON(res, 500, {
+      success: false,
+      error: err.message,
+      blender_output: blenderStdout || blenderStderr || '',
+    });
+  }
+}
+
+/**
+ * 读取 JSON 请求体
+ */
+function readJSONBody(req) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    let totalReceived = 0;
+    const MAX_JSON_SIZE = 10 * 1024; // 10 KB
+
+    req.on('data', (chunk) => {
+      totalReceived += chunk.length;
+      if (totalReceived > MAX_JSON_SIZE) {
+        reject(new Error('请求体太大'));
+        req.destroy();
+        return;
+      }
+      chunks.push(chunk);
+    });
+
+    req.on('end', () => {
+      try {
+        const buffer = Buffer.concat(chunks);
+        const json = JSON.parse(buffer.toString('utf-8'));
+        resolve(json);
+      } catch (err) {
+        reject(new Error('JSON 解析失败: ' + err.message));
+      }
+    });
+
+    req.on('error', reject);
+  });
+}
+
+/**
  * 健康检查
  */
 async function handleHealth(req, res) {
@@ -445,6 +614,8 @@ const server = http.createServer(async (req, res) => {
     await handleHealth(req, res);
   } else if (req.method === 'POST' && url.pathname === '/api/split') {
     await handleSplit(req, res);
+  } else if (req.method === 'POST' && url.pathname === '/api/ai-paint') {
+    await handleAIPaint(req, res);
   } else {
     sendJSON(res, 404, { error: 'Not Found', path: url.pathname });
   }
@@ -459,8 +630,9 @@ server.listen(PORT, () => {
   console.log(`  🎨 Blender: ${BLENDER_PATH}`);
   console.log('═'.repeat(50));
   console.log('\n  端点:');
-  console.log(`    GET  /api/health  — 健康检查`);
-  console.log(`    POST /api/split   — 拆解 GLB（二进制响应）\n`);
+  console.log(`    GET  /api/health   — 健康检查`);
+  console.log(`    POST /api/split    — 拆解 GLB（二进制响应）`);
+  console.log(`    POST /api/ai-paint — AI 绘画（生成3D模型）\n`);
 
   // 启动时检测 Blender
   execFileAsync(BLENDER_PATH, ['--version'], { timeout: 10_000 })

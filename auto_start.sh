@@ -1,8 +1,8 @@
 #!/bin/bash
 # 自动启动脚本 - 在独立 Terminal.app 中运行
-cd /Users/a1-6/quest3-exploded
+cd "$(dirname "$0")"
 
-LOG="/Users/a1-6/quest3-exploded/startup_log.txt"
+LOG="$(pwd)/startup_log.txt"
 echo "=== 启动时间: $(date) ===" > "$LOG"
 
 # 杀旧进程
@@ -12,9 +12,31 @@ lsof -ti :8080 | xargs kill -9 2>/dev/null
 sleep 1
 echo "旧进程已清理" >> "$LOG"
 
+# 检测 Blender
+BLENDER=""
+for path in \
+  "/Applications/Blender.app/Contents/MacOS/Blender" \
+  "/usr/bin/blender" \
+  "/usr/local/bin/blender" \
+  "/snap/bin/blender"; do
+  if [ -f "$path" ]; then
+    BLENDER="$path"
+    break
+  fi
+done
+if [ -z "$BLENDER" ] && command -v blender &>/dev/null; then
+  BLENDER="blender"
+fi
+if [ -n "$BLENDER" ]; then
+  echo "检测到 Blender: $BLENDER" >> "$LOG"
+  export BLENDER_PATH="$BLENDER"
+else
+  echo "⚠️ 未检测到 Blender" >> "$LOG"
+fi
+
 # 启动后端
 echo "启动后端 (port 3001)..." >> "$LOG"
-node /Users/a1-6/quest3-exploded/server.js >> "$LOG" 2>&1 &
+node "$(pwd)/server.js" >> "$LOG" 2>&1 &
 BACKEND_PID=$!
 echo "后端 PID: $BACKEND_PID" >> "$LOG"
 sleep 3
@@ -30,7 +52,7 @@ fi
 
 # 启动前端
 echo "启动前端 (port 8080)..." >> "$LOG"
-npx -y serve /Users/a1-6/quest3-exploded -l 8080 >> "$LOG" 2>&1 &
+npx -y serve "$(pwd)" -l 8080 >> "$LOG" 2>&1 &
 FRONTEND_PID=$!
 echo "前端 PID: $FRONTEND_PID" >> "$LOG"
 sleep 4
@@ -49,12 +71,11 @@ echo "=============================" >> "$LOG"
 echo "  服务地址:" >> "$LOG"
 echo "  前端: http://localhost:8080" >> "$LOG"
 echo "  后端: http://localhost:3001" >> "$LOG"
-echo "  测试: http://localhost:8080/test-blender-split.html" >> "$LOG"
 echo "=============================" >> "$LOG"
 echo "=== 启动完成: $(date) ===" >> "$LOG"
 
-# 自动打开浏览器
-open "http://localhost:8080/test-blender-split.html"
+# 自动打开浏览器到主页
+open "http://localhost:8080" 2>/dev/null || xdg-open "http://localhost:8080" 2>/dev/null
 
 # 保持运行
 wait

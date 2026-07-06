@@ -1350,12 +1350,12 @@ async function loadSTLModel(arrayBuffer, fileName) {
     // 自动适配相机
     fitCameraToModel(customModelGroup, false);
 
-    // 自动开启爆炸模式
-    goToStep(totalSteps);
-    isExploded = true;
+    // 默认合体状态（不自动爆炸）
+    goToStep(0);
+    isExploded = false;
     if (typeof explodeBtn !== 'undefined') {
-      explodeBtn.classList.add('exploded');
-      explodeBtn.textContent = '🔄 合体';
+      explodeBtn.classList.remove('exploded');
+      explodeBtn.textContent = '💥 爆炸';
     }
 
     console.log(`✅ STL 模型加载完成：${fileName}`);
@@ -1664,11 +1664,11 @@ async function loadURDFModel(urdfText, fileName) {
       console.log('✅ URDF 爆炸距离已智能调整');
     });
 
-    // 自动开启爆炸模式
-    goToStep(totalSteps);
-    isExploded = true;
-    explodeBtn.classList.add('exploded');
-    explodeBtn.textContent = '🔄 合体';
+    // 默认合体状态（不自动爆炸）
+    goToStep(0);
+    isExploded = false;
+    explodeBtn.classList.remove('exploded');
+    explodeBtn.textContent = '💥 爆炸';
 
     console.log(`✅ URDF 模型加载完成：${partCount} 个部件`);
 
@@ -1927,11 +1927,11 @@ async function loadCustomModel(arrayBuffer, fileName, blenderManifest = null) {
       console.log('✅ 爆炸距离已智能调整');
     });
 
-    // 自动开启爆炸模式
-    goToStep(totalSteps);
-    isExploded = true;
-    explodeBtn.classList.add('exploded');
-    explodeBtn.textContent = '🔄 合体';
+    // 默认合体状态（不自动爆炸）
+    goToStep(0);
+    isExploded = false;
+    explodeBtn.classList.remove('exploded');
+    explodeBtn.textContent = '💥 爆炸';
 
     console.log(`✅ 自定义模型加载完成：${partCount} 个部件（自动拆分，${groupCount} 个步骤组）`);
   } catch (err) {
@@ -1961,6 +1961,25 @@ function updateCustomModelUI(partCount, fileName) {
   if (timelineSlider) {
     timelineSlider.max = totalSteps;
   }
+
+  // ========== 动态生成部件清单 ==========
+  const partsGrid = document.querySelector('.parts-grid');
+  if (partsGrid && customModelParts.length > 0) {
+    partsGrid.innerHTML = '';
+    customModelParts.forEach((part, i) => {
+      const item = document.createElement('div');
+      item.className = 'part-item';
+      item.dataset.part = part.name;
+      // 提取材质颜色作为圆点颜色
+      let dotColor = '#888';
+      if (part.mesh && part.mesh.material) {
+        const mat = part.mesh.material;
+        if (mat.color) dotColor = '#' + mat.color.getHexString();
+      }
+      item.innerHTML = `<span class="part-dot" style="background:${dotColor}"></span>${part.name}`;
+      partsGrid.appendChild(item);
+    });
+  }
 }
 
 function clearCustomModel() {
@@ -1985,6 +2004,21 @@ function clearCustomModel() {
   // 恢复 UI
   const countEl = document.getElementById('part-count');
   if (countEl) countEl.textContent = '15';
+
+  // 恢复默认部件清单
+  const partsGrid = document.querySelector('.parts-grid');
+  if (partsGrid) {
+    partsGrid.innerHTML = `
+      <div class="part-item" data-part="前面板"><span class="part-dot" style="background:#f2f2f2"></span>前面板</div>
+      <div class="part-item" data-part="主机身"><span class="part-dot" style="background:#222225"></span>主机身</div>
+      <div class="part-item" data-part="左透镜模组"><span class="part-dot" style="background:#1e3a5f"></span>透镜 x2</div>
+      <div class="part-item" data-part="左摄像头"><span class="part-dot" style="background:#0a0a0a"></span>摄像头 x4</div>
+      <div class="part-item" data-part="左头带臂"><span class="part-dot" style="background:#3a3a3c"></span>头带臂 x2</div>
+      <div class="part-item" data-part="面罩海绵"><span class="part-dot" style="background:#2c2c2e"></span>海绵</div>
+      <div class="part-item" data-part="主板/显示屏"><span class="part-dot" style="background:#0d4a22"></span>主板</div>
+      <div class="part-item" data-part="头带"><span class="part-dot" style="background:#3a3a3c"></span>头带</div>
+    `;
+  }
 
   const timelineTotalEl = document.getElementById('timeline-total');
   if (timelineTotalEl) timelineTotalEl.textContent = totalSteps;
@@ -2608,9 +2642,17 @@ setTimeout(() => {
 
 // ===== 文件上传与自定义模型 =====
 // 全局显示状态消息（可在 loadCustomModel 和 clearCustomModel 中调用）
+// base64 → UTF-8 字符串（修复中文乱码：atob 只支持 Latin-1）
+function base64ToUtf8(base64Str) {
+const binaryStr = atob(base64Str);
+const bytes = new Uint8Array(binaryStr.length);
+for (let i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i);
+return new TextDecoder('utf-8').decode(bytes);
+}
+
 function showStatus(msg, type = 'info') {
-  if (!uploadStatusEl) return;
-  uploadStatusEl.textContent = msg;
+if (!uploadStatusEl) return;
+uploadStatusEl.textContent = msg;
   uploadStatusEl.className = 'upload-status';
   uploadStatusEl.classList.remove('hidden');
   uploadStatusEl.style.background = type === 'success' ? 'rgba(76, 175, 80, 0.2)' :
@@ -2705,16 +2747,16 @@ function setupUpload() {
           // 新格式：二进制 GLB body + manifest 在 header
           const totalParts = parseInt(xhr.getResponseHeader('X-Total-Parts') || '0');
           const elapsedSeconds = parseFloat(xhr.getResponseHeader('X-Elapsed-Seconds') || '0');
-          const manifestBase64 = xhr.getResponseHeader('X-Manifest') || '';
+const manifestBase64 = xhr.getResponseHeader('X-Manifest') || '';
 
-          // 解析 manifest（base64 → JSON）
-          let manifest = null;
-          if (manifestBase64) {
-            const manifestJson = atob(manifestBase64);
-            manifest = JSON.parse(manifestJson);
-          } else {
-            throw new Error('响应中缺少 manifest 头');
-          }
+// 解析 manifest（base64 → UTF-8 JSON，正确处理中文）
+let manifest = null;
+if (manifestBase64) {
+const manifestJson = base64ToUtf8(manifestBase64);
+manifest = JSON.parse(manifestJson);
+} else {
+throw new Error('响应中缺少 manifest 头');
+}
 
           showStatus(`✅ Blender 拆解完成：${totalParts} 个部件 (${elapsedSeconds}s)`, 'success');
 
@@ -2846,6 +2888,208 @@ function setupUpload() {
   }
 
   console.log('文件上传功能已启用');
+}
+
+// ===== AI 绘画功能 =====
+const BLENDER_SERVER_AI = 'http://localhost:3001';
+let aiPaintGallery = []; // 存储已生成的模型 { id, prompt, arrayBuffer, manifest, icon, parts }
+
+function setupAIPaint() {
+  const promptInput = document.getElementById('ai-paint-prompt');
+  const paintBtn = document.getElementById('ai-paint-btn');
+  const presetBtns = document.querySelectorAll('.ai-preset-btn');
+  const statusEl = document.getElementById('ai-paint-status');
+  const galleryEl = document.getElementById('ai-paint-gallery');
+
+  if (!promptInput || !paintBtn) {
+    console.warn('AI 绘画元素未找到，跳过初始化');
+    return;
+  }
+
+  function showAIStatus(msg, type = 'info') {
+    if (!statusEl) return;
+    statusEl.innerHTML = msg;
+    statusEl.className = 'ai-paint-status ' + type;
+    statusEl.classList.remove('hidden');
+  }
+
+  function hideAIStatus() {
+    if (statusEl) statusEl.classList.add('hidden');
+  }
+
+  // 获取提示词对应的图标
+  function getPromptIcon(prompt) {
+    const p = prompt.toLowerCase();
+    if (p.includes('篮球') || p.includes('basketball')) return '🏀';
+    if (p.includes('quest') || p.includes('vr') || p.includes('头显')) return '🕶️';
+    if (p.includes('机器人') || p.includes('robot')) return '🤖';
+    if (p.includes('汽车') || p.includes('车') || p.includes('car')) return '🚗';
+    if (p.includes('房子') || p.includes('house')) return '🏠';
+    if (p.includes('人') || p.includes('角色') || p.includes('character')) return '🧑';
+    if (p.includes('火箭') || p.includes('rocket')) return '🚀';
+    if (p.includes('球') || p.includes('sphere') || p.includes('ball')) return '🔴';
+    return '🎨';
+  }
+
+  // 发送 AI 绘画请求
+  async function generateModel(prompt) {
+    if (!prompt || !prompt.trim()) {
+      showAIStatus('❌ 请输入提示词', 'error');
+      return;
+    }
+
+    prompt = prompt.trim();
+    console.log(`🎨 AI 绘画: "${prompt}"`);
+
+    // 禁用按钮，显示进度
+    paintBtn.disabled = true;
+    paintBtn.textContent = '⏳ 生成中...';
+    showAIStatus(`<span class="ai-paint-spinner"></span>正在生成 "${prompt}" ...（Blender 处理中，约10-30秒）`, 'info');
+
+    try {
+      const xhr = new XMLHttpRequest();
+      xhr.responseType = 'arraybuffer';
+      xhr.timeout = 120000; // 2 分钟
+
+      const result = await new Promise((resolve, reject) => {
+        xhr.addEventListener('load', () => {
+          try {
+            if (xhr.status !== 200) {
+              const errText = new TextDecoder().decode(xhr.response);
+              let errMsg = `服务器错误 ${xhr.status}`;
+              try { errMsg = JSON.parse(errText).error || errMsg; } catch {}
+              reject(new Error(errMsg));
+              return;
+            }
+
+            const successHeader = xhr.getResponseHeader('X-Success');
+            if (successHeader !== 'true') {
+              reject(new Error('服务器返回异常'));
+              return;
+            }
+
+            const totalParts = parseInt(xhr.getResponseHeader('X-Total-Parts') || '0');
+            const elapsedSeconds = parseFloat(xhr.getResponseHeader('X-Elapsed-Seconds') || '0');
+const manifestBase64 = xhr.getResponseHeader('X-Manifest') || '';
+
+let manifest = null;
+if (manifestBase64) {
+const manifestJson = base64ToUtf8(manifestBase64);
+manifest = JSON.parse(manifestJson);
+}
+
+            resolve({
+              arrayBuffer: xhr.response,
+              manifest,
+              totalParts,
+              elapsedSeconds,
+            });
+          } catch (err) {
+            reject(err);
+          }
+        });
+
+        xhr.addEventListener('error', () => reject(new Error('网络错误：无法连接到服务器（请确认 server.js 已启动）')));
+        xhr.addEventListener('timeout', () => reject(new Error('请求超时（2分钟）')));
+
+        xhr.open('POST', `${BLENDER_SERVER_AI}/api/ai-paint`);
+        xhr.setRequestHeader('Content-Type', 'application/json');
+        xhr.send(JSON.stringify({ prompt }));
+      });
+
+      // 成功！加载模型到场景
+      showAIStatus(`✅ 生成成功！${result.totalParts} 个部件 (${result.elapsedSeconds}s)\n正在加载到场景...`, 'success');
+
+      const fileName = `AI: ${prompt}`;
+      await loadCustomModel(result.arrayBuffer, fileName, result.manifest);
+
+      // 更新状态
+      showAIStatus(`✅ "${prompt}" 已加载\n${result.totalParts} 个部件 · 点击"💥 爆炸"可拆解`, 'success');
+
+      // 添加到画廊
+      const galleryItem = {
+        id: Date.now(),
+        prompt,
+        arrayBuffer: result.arrayBuffer,
+        manifest: result.manifest,
+        icon: getPromptIcon(prompt),
+        parts: result.totalParts,
+      };
+      aiPaintGallery.push(galleryItem);
+      renderGallery();
+
+      // 同时更新上传区域的状态
+      showStatus(`✅ AI 绘画：${prompt}\n${result.totalParts} 个部件 · 点击爆炸按钮拆解`, 'success');
+
+      console.log(`✅ AI 绘画完成: ${result.totalParts} 个部件`);
+
+    } catch (err) {
+      console.error('AI 绘画失败:', err);
+      showAIStatus(`❌ 生成失败：${err.message}`, 'error');
+    } finally {
+      paintBtn.disabled = false;
+      paintBtn.textContent = '✨ 生成';
+    }
+  }
+
+  // 渲染画廊
+  function renderGallery() {
+    if (!galleryEl) return;
+    galleryEl.innerHTML = '';
+
+    // 只显示最近 8 个
+    const recent = aiPaintGallery.slice(-8);
+    recent.forEach((item, idx) => {
+      const actualIdx = aiPaintGallery.length - recent.length + idx;
+      const el = document.createElement('div');
+      el.className = 'ai-gallery-item';
+      el.innerHTML = `
+        <span class="gallery-icon">${item.icon}</span>
+        <span class="gallery-name">${item.prompt}</span>
+        <span class="gallery-parts">${item.parts}件</span>
+      `;
+      el.addEventListener('click', () => {
+        // 重新加载这个模型
+        loadCustomModel(item.arrayBuffer, `AI: ${item.prompt}`, item.manifest);
+        showAIStatus(`✅ 已切换到 "${item.prompt}"`, 'success');
+        // 标记活跃
+        galleryEl.querySelectorAll('.ai-gallery-item').forEach(e => e.classList.remove('active'));
+        el.classList.add('active');
+      });
+      galleryEl.appendChild(el);
+    });
+  }
+
+  // 生成按钮点击
+  paintBtn.addEventListener('click', () => {
+    generateModel(promptInput.value);
+  });
+
+  // 回车键提交
+  promptInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      generateModel(promptInput.value);
+    }
+  });
+
+  // 预设按钮
+  presetBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const preset = btn.dataset.prompt;
+      promptInput.value = preset;
+      generateModel(preset);
+    });
+  });
+
+  console.log('🎨 AI 绘画功能已启用');
+}
+
+// 等待 DOM 完全加载后初始化 AI 绘画
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', setupAIPaint);
+} else {
+  setupAIPaint();
 }
 
 // ===== 主题切换 =====

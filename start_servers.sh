@@ -5,19 +5,46 @@
 cd "$(dirname "$0")"
 
 echo "═══════════════════════════════════════════"
-echo "  🚀 启动 GLB 拆解服务器"
+echo "  🚀 启动 GLB 拆解服务器 + AI 绘画"
 echo "═══════════════════════════════════════════"
 
 # 杀掉旧进程
+echo "🧹 清理旧进程..."
 lsof -ti :3001 | xargs kill -9 2>/dev/null
 lsof -ti :8080 | xargs kill -9 2>/dev/null
 sleep 1
 
+# 检测 Blender
+BLENDER=""
+for path in \
+  "/Applications/Blender.app/Contents/MacOS/Blender" \
+  "/usr/bin/blender" \
+  "/usr/local/bin/blender" \
+  "/snap/bin/blender"; do
+  if [ -f "$path" ]; then
+    BLENDER="$path"
+    break
+  fi
+done
+if [ -z "$BLENDER" ]; then
+  if command -v blender &>/dev/null; then
+    BLENDER="blender"
+  fi
+fi
+
+if [ -n "$BLENDER" ]; then
+  echo "✅ 检测到 Blender: $BLENDER"
+  export BLENDER_PATH="$BLENDER"
+else
+  echo "⚠️  未检测到 Blender，AI 绘画功能将不可用"
+fi
+
 # 启动后端
+echo ""
 echo "📦 启动后端服务 (端口 3001)..."
 node server.js &
 BACKEND_PID=$!
-sleep 2
+sleep 3
 
 # 检查后端是否启动
 if kill -0 $BACKEND_PID 2>/dev/null; then
@@ -43,12 +70,20 @@ echo ""
 echo "═══════════════════════════════════════════"
 echo "  ✅ 全部启动完成！"
 echo ""
-echo "  📋 前端:      http://localhost:8080"
+echo "  📋 前端主页:  http://localhost:8080"
 echo "  🔧 后端API:   http://localhost:3001"
+echo "  🎨 AI 绘画:   http://localhost:8080 (点击「AI 绘画」面板)"
 echo "  🧪 测试页面:  http://localhost:8080/test-blender-split.html"
 echo ""
 echo "  按 Ctrl+C 停止所有服务"
 echo "═══════════════════════════════════════════"
+
+# 自动打开浏览器
+if command -v open &>/dev/null; then
+  open "http://localhost:8080"
+elif command -v xdg-open &>/dev/null; then
+  xdg-open "http://localhost:8080"
+fi
 
 # 等待
 wait

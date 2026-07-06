@@ -1123,3 +1123,239 @@ html, body {
 .ui-overlay.light-theme::-webkit-scrollbar-thumb:hover {
   background: rgba(0, 0, 0, 0.3);
 }
+
+/* ===== AI 绘画面板 ===== */
+.ai-paint-section {
+  margin-bottom: 20px;
+  padding: 18px;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(168, 85, 247, 0.08));
+  border: 1px solid rgba(129, 140, 248, 0.3);
+  border-radius: 14px;
+  transition: background 0.3s ease, border-color 0.3s ease;
+}
+
+.ai-paint-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 700;
+  margin-bottom: 12px;
+  color: #a5b4fc;
+}
+
+.ui-overlay.light-theme .ai-paint-section {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(168, 85, 247, 0.05));
+  border-color: rgba(99, 102, 241, 0.25);
+}
+
+.ui-overlay.light-theme .ai-paint-header {
+  color: #4f46e5;
+}
+
+.ai-paint-input-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.ai-paint-input {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 14px;
+  background: rgba(15, 16, 22, 0.6);
+  border: 1px solid rgba(129, 140, 248, 0.3);
+  border-radius: 10px;
+  color: #e6e6e6;
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.ai-paint-input::placeholder {
+  color: rgba(165, 180, 252, 0.4);
+}
+
+.ai-paint-input:focus {
+  border-color: #818cf8;
+  box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.15);
+}
+
+.ui-overlay.light-theme .ai-paint-input {
+  background: rgba(255, 255, 255, 0.8);
+  border-color: rgba(99, 102, 241, 0.25);
+  color: #1a1a1a;
+}
+
+.ui-overlay.light-theme .ai-paint-input::placeholder {
+  color: rgba(99, 102, 241, 0.35);
+}
+
+.ai-paint-btn {
+  white-space: nowrap;
+  background: linear-gradient(135deg, #6366f1, #a855f7) !important;
+  color: #fff !important;
+  border: none !important;
+  font-weight: 600;
+  padding: 10px 18px !important;
+  border-radius: 10px !important;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+}
+
+.ai-paint-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.4);
+}
+
+.ai-paint-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.ai-paint-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ai-paint-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.ai-preset-btn {
+  padding: 6px 12px;
+  background: rgba(129, 140, 248, 0.1);
+  border: 1px solid rgba(129, 140, 248, 0.2);
+  border-radius: 8px;
+  color: #c7d2fe;
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.ai-preset-btn:hover {
+  background: rgba(129, 140, 248, 0.25);
+  border-color: rgba(129, 140, 248, 0.5);
+  transform: translateY(-1px);
+}
+
+.ui-overlay.light-theme .ai-preset-btn {
+  background: rgba(99, 102, 241, 0.06);
+  border-color: rgba(99, 102, 241, 0.15);
+  color: #4f46e5;
+}
+
+.ui-overlay.light-theme .ai-preset-btn:hover {
+  background: rgba(99, 102, 241, 0.12);
+  border-color: rgba(99, 102, 241, 0.3);
+}
+
+.ai-paint-status {
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.5;
+  margin-bottom: 10px;
+}
+
+.ai-paint-status.hidden {
+  display: none;
+}
+
+.ai-paint-status.info {
+  background: rgba(33, 150, 243, 0.15);
+  border: 1px solid rgba(33, 150, 243, 0.3);
+  color: #90caf9;
+}
+
+.ai-paint-status.success {
+  background: rgba(76, 175, 80, 0.15);
+  border: 1px solid rgba(76, 175, 80, 0.3);
+  color: #a5d6a7;
+}
+
+.ai-paint-status.error {
+  background: rgba(244, 67, 54, 0.15);
+  border: 1px solid rgba(244, 67, 54, 0.3);
+  color: #ef9a9a;
+}
+
+/* AI 绘画进度动画 */
+.ai-paint-spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(129, 140, 248, 0.2);
+  border-top-color: #818cf8;
+  border-radius: 50%;
+  animation: ai-paint-spin 0.8s linear infinite;
+  vertical-align: middle;
+  margin-right: 6px;
+}
+
+@keyframes ai-paint-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* AI 绘画画廊 */
+.ai-paint-gallery {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.ai-paint-gallery:empty {
+  display: none;
+}
+
+.ai-gallery-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: rgba(129, 140, 248, 0.1);
+  border: 1px solid rgba(129, 140, 248, 0.25);
+  border-radius: 8px;
+  font-size: 12px;
+  color: #c7d2fe;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.ai-gallery-item:hover {
+  background: rgba(129, 140, 248, 0.2);
+  border-color: rgba(129, 140, 248, 0.5);
+  transform: translateY(-1px);
+}
+
+.ai-gallery-item.active {
+  background: rgba(129, 140, 248, 0.3);
+  border-color: #818cf8;
+}
+
+.ai-gallery-item .gallery-icon {
+  font-size: 16px;
+}
+
+.ai-gallery-item .gallery-name {
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ai-gallery-item .gallery-parts {
+  font-size: 10px;
+  opacity: 0.6;
+}
+
+.ui-overlay.light-theme .ai-gallery-item {
+  background: rgba(99, 102, 241, 0.06);
+  border-color: rgba(99, 102, 241, 0.15);
+  color: #4f46e5;
+}
