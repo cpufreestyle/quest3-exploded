@@ -205,6 +205,111 @@ def taper_mesh(obj, axis='x', end='positive', scale=0.0):
     return obj
 
 
+# ===== 更多 Blender 高级功能辅助函数 =====
+
+def apply_boolean(target, cutter, operation='DIFFERENCE'):
+    """布尔运算 — 在 target 上执行布尔操作（差集/并集/交集）"""
+    mod = target.modifiers.new(name='Boolean', type='BOOLEAN')
+    mod.operation = operation
+    mod.object = cutter
+    # 应用修改器
+    bpy.ops.object.select_all(action='DESELECT')
+    target.select_set(True)
+    bpy.context.view_layer.objects.active = target
+    bpy.ops.object.modifier_apply(modifier='Boolean')
+    # 删除切割体
+    bpy.data.objects.remove(cutter, do_unlink=True)
+    return target
+
+
+def apply_displace(obj, strength=0.1, mid_level=0.5):
+    """位移修改器 — 添加表面凹凸细节（肌肉纹理、皮肤质感）"""
+    # 创建一个简单的噪声纹理
+    tex = bpy.data.textures.new(name=f'{obj.name}_disp_tex', type='CLOUDS')
+    tex.noise_scale = 0.5
+    mod = obj.modifiers.new(name='Displace', type='DISPLACE')
+    mod.texture = tex
+    mod.strength = strength
+    mod.mid_level = mid_level
+    return obj
+
+
+def apply_edge_split(obj, split_angle=40):
+    """边线拆分修改器 — 保留硬边"""
+    mod = obj.modifiers.new(name='EdgeSplit', type='EDGE_SPLIT')
+    mod.split_angle = math.radians(split_angle)
+    return obj
+
+
+def apply_wireframe(obj, thickness=0.02):
+    """线框修改器 — 将网格转换为线框结构"""
+    mod = obj.modifiers.new(name='Wireframe', type='WIREFRAME')
+    mod.thickness = thickness
+    return obj
+
+
+def apply_remesh(obj, voxel_size=0.05):
+    """重网格化修改器 — 统一网格拓扑"""
+    mod = obj.modifiers.new(name='Remesh', type='REMESH')
+    if hasattr(mod, 'voxel_size'):
+        mod.mode = 'VOXEL'
+        mod.voxel_size = voxel_size
+    elif hasattr(mod, 'octree_depth'):
+        mod.mode = 'BLOCKS'
+        mod.octree_depth = 5
+    return obj
+
+
+def create_cloth_cape(name, width=1.2, height=1.5, mat=None):
+    """创建披风 — 平面 + 实体化 + 波浪变形（模拟布料）"""
+    bpy.ops.mesh.primitive_plane_add(size=1, location=(0, 0, 0))
+    obj = bpy.context.active_object
+    obj.scale = (width, height, 1)
+    bpy.ops.object.transform_apply(scale=True)
+    # 细分网格使布料更平滑
+    for _ in range(3):
+        bpy.ops.object.mode_set(mode='EDIT')
+        bpy.ops.mesh.subdivide()
+        bpy.ops.object.mode_set(mode='OBJECT')
+    # 波浪变形 — bmesh 顶点位移
+    bpy.ops.object.mode_set(mode='EDIT')
+    bm = bmesh.from_edit_mesh(obj.data)
+    bm.verts.ensure_lookup_table()
+    for v in bm.verts:
+        # 底部波动更大
+        wave = math.sin(v.co.x * 4) * 0.08 * (1 - v.co.y / height)
+        v.co.z += wave
+        # 整体后倾
+        v.co.y -= abs(v.co.x) * 0.1
+    bmesh.update_edit_mesh(obj.data)
+    bpy.ops.object.mode_set(mode='OBJECT')
+    apply_solidify(obj, thickness=0.015)
+    apply_subsurf(obj, levels=1)
+    if mat:
+        obj.data.materials.append(mat)
+    obj['ai_paint_part'] = name
+    obj.name = name
+    return obj
+
+
+def create_emblem(name, letter='S', radius=0.15, mat=None):
+    """创建胸章 — 用文本+倒角+挤出制作3D标志"""
+    bpy.ops.object.text_add(location=(0, 0, 0))
+    obj = bpy.context.active_object
+    obj.data.body = letter
+    obj.data.extrude = 0.03
+    obj.data.bevel_depth = 0.01
+    obj.data.bevel_resolution = 3
+    obj.data.size = radius * 2
+    # 转为网格
+    bpy.ops.object.convert(target='MESH')
+    obj.name = name
+    if mat:
+        obj.data.materials.append(mat)
+    obj['ai_paint_part'] = name
+    return obj
+
+
 # ===== 模型生成器 =====
 
 def create_red_sphere():
@@ -579,7 +684,7 @@ def create_house():
     return parts
 
 
-def create_character():
+def create_character(gender='female'):
     """美女角色 — 使用细分曲面、曲线头发、五官细节等高级功能"""
     mat_skin = make_mat('Skin', (0.96, 0.82, 0.72), roughness=0.45, sheen=0.3, clearcoat=0.1)
     mat_hair = make_mat('Hair', (0.15, 0.08, 0.06), roughness=0.6, sheen=0.5)
@@ -901,6 +1006,277 @@ def create_airplane():
     return parts
 
 
+def create_superhero(hero_type='superman'):
+    """超级英雄生成器 — 披风+紧身衣+胸章+肌肉位移+英雄配色
+    支持：superman, batman, ironman, spiderman, captain, generic
+    使用：布尔运算、位移修改器、布料披风、文本胸章、细分曲面
+    """
+    # === 英雄配色方案 ===
+    hero_schemes = {
+        'superman': {
+            'suit': (0.05, 0.15, 0.55), 'cape': (0.7, 0.05, 0.05),
+            'boots': (0.7, 0.05, 0.05), 'emblem': 'S', 'emblem_color': (0.9, 0.85, 0.1),
+            'skin': (0.95, 0.80, 0.68), 'hair': (0.05, 0.03, 0.02),
+            'name_prefix': '超人',
+        },
+        'batman': {
+            'suit': (0.05, 0.05, 0.08), 'cape': (0.03, 0.03, 0.05),
+            'boots': (0.05, 0.05, 0.08), 'emblem': 'B', 'emblem_color': (0.8, 0.6, 0.0),
+            'skin': (0.95, 0.80, 0.68), 'hair': (0.05, 0.03, 0.02),
+            'name_prefix': '蝙蝠侠',
+        },
+        'ironman': {
+            'suit': (0.75, 0.1, 0.05), 'cape': None, 'boots': (0.3, 0.3, 0.35),
+            'emblem': 'I', 'emblem_color': (0.9, 0.85, 0.1),
+            'skin': (0.75, 0.1, 0.05), 'hair': None,
+            'name_prefix': '钢铁侠',
+        },
+        'spiderman': {
+            'suit': (0.7, 0.1, 0.1), 'cape': None, 'boots': (0.05, 0.1, 0.4),
+            'emblem': 'S', 'emblem_color': (0.05, 0.1, 0.4),
+            'skin': (0.7, 0.1, 0.1), 'hair': None,
+            'name_prefix': '蜘蛛侠',
+        },
+        'captain': {
+            'suit': (0.1, 0.2, 0.6), 'cape': None, 'boots': (0.6, 0.05, 0.05),
+            'emblem': '★', 'emblem_color': (0.9, 0.9, 0.9),
+            'skin': (0.95, 0.80, 0.68), 'hair': (0.2, 0.15, 0.08),
+            'name_prefix': '美队',
+        },
+        'generic': {
+            'suit': (0.1, 0.3, 0.6), 'cape': (0.1, 0.3, 0.6),
+            'boots': (0.05, 0.05, 0.05), 'emblem': 'H', 'emblem_color': (0.9, 0.8, 0.1),
+            'skin': (0.95, 0.80, 0.68), 'hair': (0.1, 0.05, 0.03),
+            'name_prefix': '英雄',
+        },
+    }
+    s = hero_schemes.get(hero_type, hero_schemes['generic'])
+    np = s['name_prefix']
+
+    # === 材质 ===
+    mat_suit = make_mat(f'{np}Suit', s['suit'], roughness=0.3, metallic=0.3, clearcoat=0.5)
+    mat_skin = make_mat(f'{np}Skin', s['skin'], roughness=0.5, sheen=0.2)
+    mat_emblem = make_mat(f'{np}Emblem', s['emblem_color'], roughness=0.2, metallic=0.6,
+                          clearcoat=0.8, emission=s['emblem_color'], emission_strength=0.5)
+    mat_hair = make_mat(f'{np}Hair', s['hair'], roughness=0.6, sheen=0.4) if s['hair'] else None
+    mat_boots = make_mat(f'{np}Boots', s['boots'], roughness=0.3, metallic=0.4, clearcoat=0.6)
+    mat_eye = make_mat(f'{np}Eye', (0.05, 0.05, 0.05), roughness=0.2)
+    mat_belt = make_mat(f'{np}Belt', (0.8, 0.65, 0.1), roughness=0.3, metallic=0.8)
+    mat_cape = None
+    if s['cape']:
+        mat_cape = make_mat(f'{np}Cape', s['cape'], roughness=0.5, sheen=0.3)
+
+    parts = []
+
+    # === 头部 — UV球 + 细分 ===
+    bpy.ops.mesh.primitive_uv_sphere_add(radius=0.22, segments=32, ring_count=16, location=(0, 1.65, 0))
+    obj = bpy.context.active_object
+    obj.scale = (0.9, 1.08, 0.95)
+    bpy.ops.object.transform_apply(scale=True)
+    apply_subsurf(obj, levels=2)
+    parts.append(add_obj(obj, f'{np}头部', mat_skin))
+
+    # === 头发（非全脸罩英雄才有）===
+    if mat_hair:
+        bpy.ops.mesh.primitive_uv_sphere_add(radius=0.24, segments=32, ring_count=16, location=(0, 1.72, -0.02))
+        obj = bpy.context.active_object
+        obj.scale = (0.92, 0.8, 0.92)
+        bpy.ops.object.transform_apply(scale=True)
+        apply_subsurf(obj, levels=2)
+        parts.append(add_obj(obj, f'{np}头发', mat_hair))
+
+    # === 眼睛 x2 ===
+    for side, x in [('左眼', -0.07), ('右眼', 0.07)]:
+        bpy.ops.mesh.primitive_uv_sphere_add(radius=0.025, segments=16, ring_count=8, location=(x, 1.63, 0.19))
+        parts.append(add_obj(bpy.context.active_object, f'{np}{side}', mat_eye))
+
+    # === 面罩（蝙蝠侠/蜘蛛侠用面罩替代头发）===
+    if hero_type in ('batman', 'spiderman'):
+        bpy.ops.mesh.primitive_uv_sphere_add(radius=0.23, segments=32, ring_count=16, location=(0, 1.6, 0.05))
+        obj = bpy.context.active_object
+        obj.scale = (0.92, 0.6, 0.85)
+        bpy.ops.object.transform_apply(scale=True)
+        apply_subsurf(obj, levels=1)
+        parts.append(add_obj(obj, f'{np}面罩', mat_suit))
+
+    # === 颈部 ===
+    bpy.ops.mesh.primitive_cylinder_add(radius=0.07, depth=0.15, vertices=24, location=(0, 1.3, 0))
+    obj = bpy.context.active_object
+    apply_subsurf(obj, levels=1)
+    parts.append(add_obj(obj, f'{np}颈部', mat_suit))
+
+    # === 躯干（紧身衣）— 立方体 + bmesh V型肌肉 + 位移 + 细分 ===
+    bpy.ops.mesh.primitive_cube_add(size=1, location=(0, 0.85, 0))
+    obj = bpy.context.active_object
+    obj.scale = (0.38, 0.5, 0.22)
+    bpy.ops.object.transform_apply(scale=True)
+    # bmesh 使胸部宽阔、腰部收紧（倒三角身材）
+    bpy.ops.object.mode_set(mode='EDIT')
+    bm = bmesh.from_edit_mesh(obj.data)
+    bm.verts.ensure_lookup_table()
+    bottom_verts = [v for v in bm.verts if v.co.y < -0.2]
+    bmesh.ops.scale(bm, vec=(0.75, 1, 0.8), verts=bottom_verts)
+    bmesh.update_edit_mesh(obj.data)
+    bpy.ops.object.mode_set(mode='OBJECT')
+    apply_displace(obj, strength=0.03)  # 肌肉纹理
+    apply_subsurf(obj, levels=2)
+    apply_bevel_mod(obj, width=0.02, segments=3)
+    parts.append(add_obj(obj, f'{np}紧身衣', mat_suit))
+
+    # === 胸章 — 3D文本挤出 ===
+    emblem = create_emblem(f'{np}胸章', letter=s['emblem'], radius=0.1, mat=mat_emblem)
+    emblem.location = (0, 0.85, 0.23)
+    emblem.rotation_euler = (math.radians(90), 0, 0)
+    parts.append(emblem)
+
+    # === 腰带 ===
+    bpy.ops.mesh.primitive_torus_add(major_radius=0.28, minor_radius=0.03, location=(0, 0.6, 0))
+    obj = bpy.context.active_object
+    obj.rotation_euler = (math.pi / 2, 0, 0)
+    bpy.ops.object.transform_apply(rotation=True)
+    parts.append(add_obj(obj, f'{np}腰带', mat_belt))
+
+    # === 手臂 x2 — 圆柱 + 位移（肌肉感）+ 细分 ===
+    for side, x in [('左臂', -0.33), ('右臂', 0.33)]:
+        bpy.ops.mesh.primitive_cylinder_add(radius=0.07, depth=0.5, vertices=20, location=(x, 0.85, 0))
+        obj = bpy.context.active_object
+        apply_displace(obj, strength=0.015)
+        apply_subsurf(obj, levels=1)
+        parts.append(add_obj(obj, f'{np}{side}', mat_suit))
+        # 拳头
+        bpy.ops.mesh.primitive_uv_sphere_add(radius=0.06, segments=16, ring_count=8, location=(x, 0.55, 0))
+        parts.append(add_obj(bpy.context.active_object, f'{np}{side}拳', mat_suit))
+
+    # === 腿 x2 — 圆柱 + 锥化 + 细分 ===
+    for side, x in [('左腿', -0.12), ('右腿', 0.12)]:
+        bpy.ops.mesh.primitive_cylinder_add(radius=0.09, depth=0.55, vertices=20, location=(x, 0.25, 0))
+        obj = bpy.context.active_object
+        taper_mesh(obj, axis='y', end='negative', scale=0.7)
+        apply_subsurf(obj, levels=1)
+        parts.append(add_obj(obj, f'{np}{side}', mat_suit))
+        # 靴子
+        bpy.ops.mesh.primitive_cube_add(size=1, location=(x, -0.05, 0.05))
+        obj = bpy.context.active_object
+        obj.scale = (0.12, 0.08, 0.22)
+        bpy.ops.object.transform_apply(scale=True)
+        apply_bevel_mod(obj, width=0.02, segments=3)
+        parts.append(add_obj(obj, f'{np}{side}靴', mat_boots))
+
+    # === 披风 — 布料模拟（平面+波浪变形+实体化+细分）===
+    if mat_cape:
+        cape = create_cloth_cape(f'{np}披风', width=0.9, height=1.2, mat=mat_cape)
+        cape.location = (0, 0.7, -0.18)
+        cape.rotation_euler = (0, 0, 0)
+        parts.append(cape)
+
+    # === 英雄光环（发光底座）===
+    mat_aura = make_mat(f'{np}Aura', s['emblem_color'], roughness=0.1,
+                        emission=s['emblem_color'], emission_strength=3.0)
+    bpy.ops.mesh.primitive_torus_add(major_radius=0.35, minor_radius=0.02, location=(0, -0.12, 0))
+    obj = bpy.context.active_object
+    obj.rotation_euler = (math.pi / 2, 0, 0)
+    bpy.ops.object.transform_apply(rotation=True)
+    parts.append(add_obj(obj, f'{np}光环', mat_aura))
+
+    return parts
+
+
+def create_male_character():
+    """男性角色 — 宽肩窄腰、短发、硬朗五官"""
+    mat_skin = make_mat('MSkin', (0.88, 0.72, 0.58), roughness=0.5, sheen=0.15)
+    mat_hair = make_mat('MHair', (0.08, 0.05, 0.03), roughness=0.6, sheen=0.3)
+    mat_shirt = make_mat('MShirt', (0.15, 0.2, 0.35), roughness=0.6, sheen=0.2)
+    mat_pants = make_mat('MPants', (0.08, 0.08, 0.12), roughness=0.7)
+    mat_shoe = make_mat('MShoe', (0.05, 0.05, 0.05), roughness=0.4, clearcoat=0.3)
+    mat_eye = make_mat('MEye', (0.05, 0.05, 0.05), roughness=0.2)
+
+    parts = []
+
+    # === 头部 — UV球 + 细分（男性更宽更方）===
+    bpy.ops.mesh.primitive_uv_sphere_add(radius=0.23, segments=32, ring_count=16, location=(0, 1.65, 0))
+    obj = bpy.context.active_object
+    obj.scale = (0.95, 1.0, 0.95)
+    bpy.ops.object.transform_apply(scale=True)
+    apply_subsurf(obj, levels=2)
+    parts.append(add_obj(obj, '头部', mat_skin))
+
+    # === 短发 ===
+    bpy.ops.mesh.primitive_uv_sphere_add(radius=0.25, segments=32, ring_count=16, location=(0, 1.72, -0.01))
+    obj = bpy.context.active_object
+    obj.scale = (0.95, 0.7, 0.95)
+    bpy.ops.object.transform_apply(scale=True)
+    apply_subsurf(obj, levels=1)
+    parts.append(add_obj(obj, '头发', mat_hair))
+
+    # === 眼睛 x2 ===
+    for side, x in [('左眼', -0.07), ('右眼', 0.07)]:
+        bpy.ops.mesh.primitive_uv_sphere_add(radius=0.025, segments=16, ring_count=8, location=(x, 1.63, 0.19))
+        parts.append(add_obj(bpy.context.active_object, side, mat_eye))
+
+    # === 鼻子（男性更大）===
+    bpy.ops.mesh.primitive_uv_sphere_add(radius=0.03, segments=12, ring_count=6, location=(0, 1.58, 0.21))
+    obj = bpy.context.active_object
+    obj.scale = (0.9, 1.3, 0.9)
+    bpy.ops.object.transform_apply(scale=True)
+    parts.append(add_obj(obj, '鼻子', mat_skin))
+
+    # === 嘴 ===
+    bpy.ops.mesh.primitive_torus_add(major_radius=0.04, minor_radius=0.008, location=(0, 1.52, 0.19))
+    obj = bpy.context.active_object
+    obj.scale = (1.3, 0.5, 1)
+    bpy.ops.object.transform_apply(scale=True)
+    parts.append(add_obj(obj, '嘴', mat_skin))
+
+    # === 颈部（男性更粗）===
+    bpy.ops.mesh.primitive_cylinder_add(radius=0.08, depth=0.14, vertices=24, location=(0, 1.3, 0))
+    obj = bpy.context.active_object
+    apply_subsurf(obj, levels=1)
+    parts.append(add_obj(obj, '颈部', mat_skin))
+
+    # === 躯干 — 立方体 + bmesh倒三角身材 + 位移肌肉 + 细分 ===
+    bpy.ops.mesh.primitive_cube_add(size=1, location=(0, 0.85, 0))
+    obj = bpy.context.active_object
+    obj.scale = (0.42, 0.5, 0.24)
+    bpy.ops.object.transform_apply(scale=True)
+    bpy.ops.object.mode_set(mode='EDIT')
+    bm = bmesh.from_edit_mesh(obj.data)
+    bm.verts.ensure_lookup_table()
+    bottom_verts = [v for v in bm.verts if v.co.y < -0.15]
+    bmesh.ops.scale(bm, vec=(0.72, 1, 0.8), verts=bottom_verts)
+    bmesh.update_edit_mesh(obj.data)
+    bpy.ops.object.mode_set(mode='OBJECT')
+    apply_displace(obj, strength=0.02)
+    apply_subsurf(obj, levels=2)
+    apply_bevel_mod(obj, width=0.02, segments=3)
+    parts.append(add_obj(obj, '上衣', mat_shirt))
+
+    # === 手臂 x2 — 圆柱 + 位移 + 细分（男性更粗壮）===
+    for side, x in [('左臂', -0.34), ('右臂', 0.34)]:
+        bpy.ops.mesh.primitive_cylinder_add(radius=0.07, depth=0.5, vertices=20, location=(x, 0.85, 0))
+        obj = bpy.context.active_object
+        apply_displace(obj, strength=0.012)
+        apply_subsurf(obj, levels=1)
+        parts.append(add_obj(obj, side, mat_shirt))
+        bpy.ops.mesh.primitive_uv_sphere_add(radius=0.06, segments=16, ring_count=8, location=(x, 0.55, 0))
+        parts.append(add_obj(bpy.context.active_object, side + '手', mat_skin))
+
+    # === 腿 x2 — 圆柱 + 锥化 + 细分 ===
+    for side, x in [('左腿', -0.12), ('右腿', 0.12)]:
+        bpy.ops.mesh.primitive_cylinder_add(radius=0.08, depth=0.55, vertices=20, location=(x, 0.25, 0))
+        obj = bpy.context.active_object
+        taper_mesh(obj, axis='y', end='negative', scale=0.7)
+        apply_subsurf(obj, levels=1)
+        parts.append(add_obj(obj, side, mat_pants))
+        bpy.ops.mesh.primitive_cube_add(size=1, location=(x, -0.05, 0.04))
+        obj = bpy.context.active_object
+        obj.scale = (0.1, 0.06, 0.2)
+        bpy.ops.object.transform_apply(scale=True)
+        apply_bevel_mod(obj, width=0.015, segments=2)
+        parts.append(add_obj(obj, side + '鞋', mat_shoe))
+
+    return parts
+
+
 def create_generic_model(prompt):
     """根据提示词生成通用模型 — 关键词匹配"""
     prompt_lower = prompt.lower()
@@ -955,31 +1331,149 @@ def create_generic_model(prompt):
     return parts
 
 
-# ===== 提示词匹配 =====
+# ===== 提示词智能匹配 =====
+
+# 定义提示词模板库 — 每个模板有权重，优先匹配高权重
+PROMPT_TEMPLATES = [
+    # === 超级英雄类（高优先级，必须在泛「人」之前匹配）===
+    {
+        'keywords': ['超人', 'superman', '克拉克', '钢铁之躯'],
+        'weight': 100,
+        'creator': lambda: create_superhero('superman'),
+        'desc': '超人',
+    },
+    {
+        'keywords': ['蝙蝠侠', 'batman', '布鲁斯'],
+        'weight': 100,
+        'creator': lambda: create_superhero('batman'),
+        'desc': '蝙蝠侠',
+    },
+    {
+        'keywords': ['钢铁侠', 'iron man', 'ironman', '托尼'],
+        'weight': 100,
+        'creator': lambda: create_superhero('ironman'),
+        'desc': '钢铁侠',
+    },
+    {
+        'keywords': ['蜘蛛侠', 'spiderman', 'spider-man', '彼得帕克'],
+        'weight': 100,
+        'creator': lambda: create_superhero('spiderman'),
+        'desc': '蜘蛛侠',
+    },
+    {
+        'keywords': ['美国队长', 'captain america', '美队', '史蒂夫'],
+        'weight': 100,
+        'creator': lambda: create_superhero('captain'),
+        'desc': '美国队长',
+    },
+    {
+        'keywords': ['英雄', 'hero', '超级英雄', 'superhero', 'super hero'],
+        'weight': 90,
+        'creator': lambda: create_superhero('generic'),
+        'desc': '超级英雄',
+    },
+    # === 具体角色类型 ===
+    {
+        'keywords': ['美女', '女孩', '女性', 'woman', 'girl', 'female', '少女', '女神'],
+        'weight': 80,
+        'creator': lambda: create_character('female'),
+        'desc': '女性角色',
+    },
+    {
+        'keywords': ['男人', '男性', 'man', 'male', '男孩', 'boy', '帅哥', '战士', 'warrior', 'knight', '骑士'],
+        'weight': 80,
+        'creator': lambda: create_male_character(),
+        'desc': '男性角色',
+    },
+    # === 具体物体（中优先级）===
+    {
+        'keywords': ['篮球', 'basketball'],
+        'weight': 70,
+        'creator': create_basketball,
+        'desc': '篮球',
+    },
+    {
+        'keywords': ['quest', 'vr', '头显', '头戴'],
+        'weight': 70,
+        'creator': create_quest3,
+        'desc': 'Quest 3 头显',
+    },
+    {
+        'keywords': ['机器人', 'robot', '机械人', '机甲', 'mecha'],
+        'weight': 70,
+        'creator': create_robot,
+        'desc': '机器人',
+    },
+    {
+        'keywords': ['汽车', '车', 'car', 'vehicle', '跑车', '赛车'],
+        'weight': 70,
+        'creator': create_car,
+        'desc': '汽车',
+    },
+    {
+        'keywords': ['飞机', 'airplane', 'plane', '客机', '航班', 'aircraft'],
+        'weight': 70,
+        'creator': create_airplane,
+        'desc': '飞机',
+    },
+    {
+        'keywords': ['房子', '房屋', 'house', '建筑', 'building', '小屋'],
+        'weight': 70,
+        'creator': create_house,
+        'desc': '房子',
+    },
+    {
+        'keywords': ['火箭', 'rocket', '导弹', 'missile'],
+        'weight': 70,
+        'creator': create_rocket,
+        'desc': '火箭',
+    },
+    # === 泛角色（低优先级兜底）===
+    {
+        'keywords': ['人', '角色', 'character', '人物', 'person', 'human', '角色'],
+        'weight': 30,
+        'creator': lambda: create_character('female'),
+        'desc': '人物角色',
+    },
+    {
+        'keywords': ['球', 'sphere', 'ball'],
+        'weight': 30,
+        'creator': create_red_sphere,
+        'desc': '球体',
+    },
+]
+
 
 def match_prompt(prompt):
-    """根据提示词匹配模型类型"""
+    """根据提示词智能匹配模型类型 — 评分系统，高权重优先"""
     p = prompt.lower().strip()
+    log(f'  🧠 提示词分析: "{prompt}"')
 
-    if any(kw in p for kw in ['篮球', 'basketball']):
-        return create_basketball
-    elif any(kw in p for kw in ['quest', 'vr', '头显', '头戴']):
-        return create_quest3
-    elif any(kw in p for kw in ['机器人', 'robot', '机械人']):
-        return create_robot
-    elif any(kw in p for kw in ['汽车', '车', 'car', 'vehicle']):
-        return create_car
-    elif any(kw in p for kw in ['房子', '房屋', 'house', '建筑']):
-        return create_house
-    elif any(kw in p for kw in ['人', '角色', 'character', '人物', '美女', '女孩', 'boy', 'girl']):
-        return create_character
-    elif any(kw in p for kw in ['火箭', 'rocket', '导弹']):
-        return create_rocket
-    elif any(kw in p for kw in ['飞机', 'airplane', 'plane', '客机', '航班']):
-        return create_airplane
-    elif any(kw in p for kw in ['球', 'sphere', 'ball']):
-        return create_red_sphere
+    best_match = None
+    best_score = 0
+    matched_kw = ''
+
+    for template in PROMPT_TEMPLATES:
+        for kw in template['keywords']:
+            if kw in p:
+                # 精确匹配得分更高
+                score = template['weight']
+                if p.strip() == kw:
+                    score += 50  # 完全匹配加50分
+                elif p.startswith(kw):
+                    score += 20  # 开头匹配加20分
+
+                if score > best_score:
+                    best_score = score
+                    best_match = template
+                    matched_kw = kw
+                break  # 每个模板只匹配一次
+
+    if best_match:
+        log(f"  ✅ 匹配: {best_match['desc']} (关键词: '{matched_kw}', 得分: {best_score})")
+        return best_match['creator']
     else:
+        log(f"  📦 未匹配预设，使用通用生成器")
         return lambda: create_generic_model(prompt)
 
 
