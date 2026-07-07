@@ -1,0 +1,23 @@
+{
+  "provider": "stepfun",
+  "openai": {
+    "key": "",
+    "model": "gpt-3.5-turbo"
+  },
+  "anthropic": {
+    "key": "",
+    "model": "claude-3-sonnet-20240229"
+  },
+  "ollama": {
+    "url": "http://localhost:11434",
+    "model": "codellama"
+  },
+  "lmstudio": {
+    "url": "http://localhost:1234/v1",
+    "model": ""
+  },
+  "stepfun": {
+    "key": "test-key",
+    "model": "step-1-8k"
+  }
+}

@@ -477,7 +477,12 @@
                 });
                 
                 const result = await response.json();
-                showStatus(result.success ? '配置已保存' : '保存失败: ' + result.error, result.success);
+                if (result.success) {
+                    // 保存成功后刷新页面
+                    window.location.href = window.location.pathname + '?saved=true';
+                } else {
+                    showStatus('保存失败: ' + result.error, false);
+                }
             } catch (err) {
                 showStatus('保存失败: ' + err.message, false);
             }
@@ -502,6 +507,16 @@
                 resultDiv.textContent = '测试失败: ' + err.message;
             }
         }
+        
+        // 页面加载提示
+        window.addEventListener('load', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('saved') === 'true') {
+                showStatus('配置已保存，页面已刷新', true);
+                // 清除 URL 参数
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
+        });
         
         // 显示状态
         function showStatus(message, isSuccess) {
