@@ -1295,9 +1295,317 @@ def create_male_character():
     return parts
 
 
+def call_ai_for_structure(prompt):
+    """调用 AI API 分析提示词并返回模型结构"""
+    import urllib.request
+    import json
+    import os
+    
+    # 读取 AI 配置
+    config_file = os.path.join(os.path.dirname(__file__), 'ai-config.json')
+    if not os.path.exists(config_file):
+        raise Exception('AI 配置不存在')
+    
+    with open(config_file, 'r') as f:
+        config = json.load(f)
+    
+    provider = config.get('provider', 'openai')
+    
+    # 构建 AI 提示词
+    system_prompt = """你是一个 3D 模型生成专家。根据用户的描述，生成一个乐高风格的 3D 模型结构。
+
+请返回 JSON 格式的模型结构，包含以下字段：
+{
+  "description": "模型的简要描述",
+  "parts": [
+    {
+      "name": "部件名称",
+      "type": "cube|cylinder|sphere|cone",
+      "position": [x, y, z],
+      "scale": [sx, sy, sz],
+      "rotation": [rx, ry, rz],
+      "color": "red|blue|green|yellow|white|black|orange|gray"
+    }
+  ]
+}
+
+注意：
+1. 位置坐标范围在 -2 到 2 之间
+2. 缩放比例在 0.1 到 2.0 之间
+3. 旋转角度以弧度为单位
+4. 根据描述生成合理的部件数量和形状
+5. 如果是文字（如"失"），生成对应的笔画结构
+"""
+
+    user_prompt = f"请生成以下描述的乐高模型结构：{prompt}"
+    
+    # 根据提供商调用不同的 API
+    if provider == 'openai':
+        return call_openai_api(config['openai'], system_prompt, user_prompt)
+    elif provider == 'anthropic':
+        return call_anthropic_api(config['anthropic'], system_prompt, user_prompt)
+    elif provider == 'stepfun':
+        return call_stepfun_api(config['stepfun'], system_prompt, user_prompt)
+    elif provider == 'ollama':
+        return call_ollama_api(config['ollama'], system_prompt, user_prompt)
+    elif provider == 'lmstudio':
+        return call_lmstudio_api(config['lmstudio'], system_prompt, user_prompt)
+    else:
+        raise Exception(f'未知的 AI 提供商: {provider}')
+
+
+def call_openai_api(config, system_prompt, user_prompt):
+    """调用 OpenAI API"""
+    import urllib.request
+    import json
+    
+    api_key = config.get('key')
+    model = config.get('model', 'gpt-3.5-turbo')
+    
+    if not api_key:
+        raise Exception('OpenAI API Key 未配置')
+    
+    data = {
+        'model': model,
+        'messages': [
+            {'role': 'system', 'content': system_prompt},
+            {'role': 'user', 'content': user_prompt}
+        ],
+        'temperature': 0.7
+    }
+    
+    req = urllib.request.Request(
+        'https://api.openai.com/v1/chat/completions',
+        data=json.dumps(data).encode('utf-8'),
+        headers={
+            'Authorization': f'Bearer {api_key}',
+            'Content-Type': 'application/json'
+        }
+    )
+    
+    with urllib.request.urlopen(req, timeout=60) as response:
+        result = json.loads(response.read().decode('utf-8'))
+        content = result['choices'][0]['message']['content']
+        return parse_ai_response(content)
+
+
+def call_stepfun_api(config, system_prompt, user_prompt):
+    """调用 StepFun API"""
+    import urllib.request
+    import json
+    
+    api_key = config.get('key')
+    model = config.get('model', 'step-1-8k')
+    
+    if not api_key:
+        raise Exception('StepFun API Key 未配置')
+    
+    data = {
+        'model': model,
+        'messages': [
+            {'role': 'system', 'content': system_prompt},
+            {'role': 'user', 'content': user_prompt}
+        ],
+        'temperature': 0.7
+    }
+    
+    req = urllib.request.Request(
+        'https://api.stepfun.com/v1/chat/completions',
+        data=json.dumps(data).encode('utf-8'),
+        headers={
+            'Authorization': f'Bearer {api_key}',
+            'Content-Type': 'application/json'
+        }
+    )
+    
+    with urllib.request.urlopen(req, timeout=60) as response:
+        result = json.loads(response.read().decode('utf-8'))
+        content = result['choices'][0]['message']['content']
+        return parse_ai_response(content)
+
+
+def call_anthropic_api(config, system_prompt, user_prompt):
+    """调用 Anthropic Claude API"""
+    import urllib.request
+    import json
+    
+    api_key = config.get('key')
+    model = config.get('model', 'claude-3-sonnet-20240229')
+    
+    if not api_key:
+        raise Exception('Anthropic API Key 未配置')
+    
+    data = {
+        'model': model,
+        'max_tokens': 1024,
+        'system': system_prompt,
+        'messages': [{'role': 'user', 'content': user_prompt}]
+    }
+    
+    req = urllib.request.Request(
+        'https://api.anthropic.com/v1/messages',
+        data=json.dumps(data).encode('utf-8'),
+        headers={
+            'x-api-key': api_key,
+            'anthropic-version': '2023-06-01',
+            'Content-Type': 'application/json'
+        }
+    )
+    
+    with urllib.request.urlopen(req, timeout=60) as response:
+        result = json.loads(response.read().decode('utf-8'))
+        content = result['content'][0]['text']
+        return parse_ai_response(content)
+
+
+def call_ollama_api(config, system_prompt, user_prompt):
+    """调用 Ollama 本地 API"""
+    import urllib.request
+    import json
+    
+    url = config.get('url', 'http://localhost:11434')
+    model = config.get('model', 'codellama')
+    
+    data = {
+        'model': model,
+        'prompt': f"{system_prompt}\n\n{user_prompt}",
+        'stream': False
+    }
+    
+    req = urllib.request.Request(
+        f"{url}/api/generate",
+        data=json.dumps(data).encode('utf-8'),
+        headers={'Content-Type': 'application/json'}
+    )
+    
+    with urllib.request.urlopen(req, timeout=120) as response:
+        result = json.loads(response.read().decode('utf-8'))
+        return parse_ai_response(result['response'])
+
+
+def call_lmstudio_api(config, system_prompt, user_prompt):
+    """调用 LM Studio 本地 API"""
+    import urllib.request
+    import json
+    
+    url = config.get('url', 'http://localhost:1234/v1')
+    model = config.get('model')
+    
+    data = {
+        'messages': [
+            {'role': 'system', 'content': system_prompt},
+            {'role': 'user', 'content': user_prompt}
+        ],
+        'temperature': 0.7
+    }
+    
+    if model:
+        data['model'] = model
+    
+    req = urllib.request.Request(
+        f"{url}/chat/completions",
+        data=json.dumps(data).encode('utf-8'),
+        headers={'Content-Type': 'application/json'}
+    )
+    
+    with urllib.request.urlopen(req, timeout=120) as response:
+        result = json.loads(response.read().decode('utf-8'))
+        content = result['choices'][0]['message']['content']
+        return parse_ai_response(content)
+
+
+def parse_ai_response(content):
+    """解析 AI 返回的 JSON"""
+    import json
+    import re
+    
+    # 尝试提取 JSON 部分
+    json_match = re.search(r'\{[\s\S]*\}', content)
+    if json_match:
+        json_str = json_match.group()
+        return json.loads(json_str)
+    
+    # 如果没有找到 JSON，尝试直接解析
+    try:
+        return json.loads(content)
+    except:
+        raise Exception(f'无法解析 AI 响应: {content[:200]}')
+
+
+def create_part_from_ai(part_data, mat_lego, mat_stud, parts):
+    """根据 AI 返回的数据创建部件"""
+    part_type = part_data.get('type', 'cube')
+    name = part_data.get('name', '部件')
+    position = part_data.get('position', [0, 0, 0])
+    scale = part_data.get('scale', [1, 1, 1])
+    rotation = part_data.get('rotation', [0, 0, 0])
+    color_name = part_data.get('color', 'red')
+    
+    # 颜色映射
+    color_map = {
+        'red': (0.8, 0.1, 0.1), 'blue': (0.1, 0.3, 0.8), 'green': (0.1, 0.6, 0.2),
+        'yellow': (1.0, 0.8, 0.0), 'white': (0.95, 0.95, 0.95), 'black': (0.1, 0.1, 0.1),
+        'orange': (0.9, 0.4, 0.05), 'purple': (0.5, 0.1, 0.6), 'pink': (0.9, 0.5, 0.7),
+        'gray': (0.5, 0.5, 0.5), 'brown': (0.5, 0.3, 0.15),
+    }
+    
+    color = color_map.get(color_name.lower(), (0.8, 0.1, 0.1))
+    mat = make_mat(f'Mat_{name}', color, roughness=0.3)
+    
+    x, y, z = position
+    sx, sy, sz = scale
+    rx, ry, rz = rotation
+    
+    if part_type == 'cube':
+        bpy.ops.mesh.primitive_cube_add(size=1, location=(x, y, z))
+        obj = bpy.context.active_object
+        obj.scale = (sx, sy, sz)
+    elif part_type == 'cylinder':
+        bpy.ops.mesh.primitive_cylinder_add(radius=sx/2, depth=sz, location=(x, y, z))
+        obj = bpy.context.active_object
+    elif part_type == 'sphere':
+        bpy.ops.mesh.primitive_uv_sphere_add(radius=sx/2, location=(x, y, z))
+        obj = bpy.context.active_object
+    elif part_type == 'cone':
+        bpy.ops.mesh.primitive_cone_add(radius1=sx/2, radius2=0, depth=sz, location=(x, y, z))
+        obj = bpy.context.active_object
+    else:
+        bpy.ops.mesh.primitive_cube_add(size=1, location=(x, y, z))
+        obj = bpy.context.active_object
+        obj.scale = (sx, sy, sz)
+    
+    # 应用变换
+    bpy.ops.object.transform_apply(scale=True)
+    
+    # 设置旋转
+    obj.rotation_euler = (rx, ry, rz)
+    bpy.ops.object.transform_apply(rotation=True)
+    
+    # 添加倒角
+    apply_bevel_mod(obj, width=0.02, segments=2)
+    
+    parts.append(add_obj(obj, name, mat))
+    
+    # 添加凸点（如果是 cube 或 cylinder）
+    if part_type in ['cube', 'cylinder']:
+        stud_count_x = max(1, int(sx))
+        stud_count_y = max(1, int(sy))
+        for i in range(stud_count_x):
+            for j in range(stud_count_y):
+                sx_pos = x + (i - (stud_count_x-1)/2) * 0.4
+                sy_pos = y + (j - (stud_count_y-1)/2) * 0.4
+                sz_pos = z + sz/2 + 0.075
+                
+                bpy.ops.mesh.primitive_cylinder_add(radius=0.1, depth=0.12, location=(sx_pos, sy_pos, sz_pos))
+                stud = bpy.context.active_object
+                apply_bevel_mod(stud, width=0.005, segments=1)
+                parts.append(add_obj(stud, f'{name}_凸点_{i}_{j}', mat_stud))
+
+
 def create_lego_style(prompt):
-    """乐高风格生成器 — 调用 Blender 实时生成积木模型"""
+    """乐高风格生成器 — 调用 AI 理解提示词并生成对应模型"""
     import hashlib
+    import json
     
     prompt_lower = prompt.lower()
     parts = []
@@ -1320,6 +1628,17 @@ def create_lego_style(prompt):
     # 乐高材质 — 塑料质感
     mat_lego = make_mat('LegoMat', base_color, roughness=0.3, metallic=0.0)
     mat_stud = make_mat('LegoStudMat', (base_color[0]*0.9, base_color[1]*0.9, base_color[2]*0.9), roughness=0.3)
+    
+    # 尝试调用 AI 理解提示词
+    try:
+        ai_structure = call_ai_for_structure(prompt)
+        if ai_structure and 'parts' in ai_structure:
+            log(f"  🤖 AI 生成模型结构: {len(ai_structure['parts'])} 个部件")
+            for part in ai_structure['parts']:
+                create_part_from_ai(part, mat_lego, mat_stud, parts)
+            return parts
+    except Exception as e:
+        log(f"  ⚠️ AI 调用失败，使用默认生成: {e}")
 
     # 创建乐高基础方块单元
     def create_lego_brick(name, loc, size=(1, 1, 0.6), has_stud=True):
