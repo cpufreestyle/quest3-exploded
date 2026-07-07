@@ -2097,8 +2097,8 @@ def match_prompt(prompt):
         # 其他情况返回原始生成器
         return original_creator
     else:
-        log(f"  📦 未匹配预设，使用乐高风格生成")
-        return lambda: create_lego_style(prompt)
+        log(f"  📦 未匹配预设，使用默认 Quest 3 模型")
+        return create_quest3
 
 
 # ===== 高级渲染特效 =====
