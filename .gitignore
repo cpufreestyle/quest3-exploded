@@ -18,11 +18,13 @@ __pycache__/
 *.pyo
 *.pyd
 
-# Environment
+# Environment & Secrets
 .env
 .env.local
 .env.production
 .env.production.local
+ai-config.json
+.mcp.json
 
 # OS
 .DS_Store
@@ -66,3 +68,50 @@ stats.json
 .playwright
 coverage/
 .nyc_output
+
+# ─── 项目专用：不纳入仓库的无关文件 ──────────────────────────
+
+# A2A Agent 网络 (独立项目，不在本仓库管理)
+a2a-agents/
+.a2a-venv/
+.venv/
+
+# Python 虚拟环境
+venv/
+.venv/
+
+# 测试用的 AI 生成模型 (非 Quest 3 核心资源)
+models/real_elephant.glb
+models/female_character.glb
+models/lego_batman.glb
+models/lego_superman.glb
+models/red_car.glb
+models/basketball.glb
+models/red_sphere.glb
+models/sample_robot.urdf
+
+# 独立工具脚本 (体积过大，非核心功能)
+blender_ai_paint.py
+
+# 工作笔记/临时文档 (仅保留核心文档)
+docs/BUG_REPORT.md
+docs/FIXES.md
+docs/FINAL_FIXES.md
+docs/IMPLEMENTATION_COMPLETE.md
+docs/IMPLEMENTATION_SUMMARY.md
+docs/IMPROVEMENTS.md
+docs/IMPROVEMENT_IDEAS.md
+docs/VERIFICATION_REPORT.md
+docs/RELEASE_COMPLETE_v1.4.0.md
+docs/RELEASE_SUMMARY_v1.4.0.md
+docs/IP_ADDRESS_FIX.md
+docs/CUSTOM_MODEL_FIX.md
+docs/GLTFLOADER_FIX.md
+docs/EXPLOSION_TROUBLESHOOTING.md
+docs/UPDATE_SUMMARY.md
+docs/UI_UX_IMPROVEMENTS.md
+docs/RELEASE_NOTES_v*.md
+docs/CREATE_RELEASE.md
+docs/QUEST3_SUCCESS.md
+docs/REAL_MODEL_AR_PLAN.md
+docs/REAL_MODEL_INTEGRATION.md
