@@ -487,7 +487,8 @@ let AI_CONFIG = {
   openai: { key: '', model: 'gpt-3.5-turbo' },
   anthropic: { key: '', model: 'claude-3-sonnet-20240229' },
   ollama: { url: 'http://localhost:11434', model: 'codellama' },
-  lmstudio: { url: 'http://localhost:1234/v1', model: '' }
+  lmstudio: { url: 'http://localhost:1234/v1', model: '' },
+  stepfun: { key: '', model: 'step-1-8k' }
 };
 
 // 加载保存的配置
@@ -511,7 +512,8 @@ function handleAIConfigGet(req, res) {
     openai: { ...AI_CONFIG.openai, key: AI_CONFIG.openai.key ? '***' : '' },
     anthropic: { ...AI_CONFIG.anthropic, key: AI_CONFIG.anthropic.key ? '***' : '' },
     ollama: AI_CONFIG.ollama,
-    lmstudio: AI_CONFIG.lmstudio
+    lmstudio: AI_CONFIG.lmstudio,
+    stepfun: { ...AI_CONFIG.stepfun, key: AI_CONFIG.stepfun.key ? '***' : '' }
   };
   sendJSON(res, 200, safeConfig);
 }
@@ -528,6 +530,9 @@ function handleAIConfigPost(req, res) {
       }
       if (config.anthropic && !config.anthropic.key) {
         config.anthropic.key = AI_CONFIG.anthropic.key;
+      }
+      if (config.stepfun && !config.stepfun.key) {
+        config.stepfun.key = AI_CONFIG.stepfun.key;
       }
       
       AI_CONFIG = { ...AI_CONFIG, ...config };
@@ -574,6 +579,8 @@ async function callAI(prompt) {
       return await callOllama(prompt);
     case 'lmstudio':
       return await callLMStudio(prompt);
+    case 'stepfun':
+      return await callStepFun(prompt);
     default:
       throw new Error('未知的 AI 提供商: ' + provider);
   }
@@ -669,6 +676,31 @@ async function callLMStudio(prompt) {
   
   const data = await response.json();
   if (!response.ok) throw new Error(data.error?.message || 'LM Studio 错误');
+  return data.choices[0].message.content;
+}
+
+/**
+ * 调用 StepFun
+ */
+async function callStepFun(prompt) {
+  const { key, model } = AI_CONFIG.stepfun;
+  if (!key) throw new Error('StepFun API Key 未配置');
+  
+  const response = await fetch('https://api.stepfun.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${key}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      model: model || 'step-1-8k',
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.7
+    })
+  });
+  
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error?.message || 'StepFun API 错误');
   return data.choices[0].message.content;
 }
 

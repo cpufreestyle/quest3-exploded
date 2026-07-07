@@ -257,6 +257,14 @@
                         <div class="provider-desc">本地模型</div>
                     </label>
                 </div>
+                
+                <div class="radio-item">
+                    <input type="radio" name="provider" id="provider-stepfun" value="stepfun">
+                    <label for="provider-stepfun">
+                        <div class="provider-name">StepFun</div>
+                        <div class="provider-desc">阶跃星辰</div>
+                    </label>
+                </div>
             </div>
         </div>
         
@@ -344,6 +352,30 @@
             </div>
         </div>
         
+        <!-- StepFun 配置 -->
+        <div id="config-stepfun" class="card config-section hidden">
+            <div class="card-title">
+                <div class="icon">⭐</div>
+                StepFun 配置
+            </div>
+            
+            <div class="form-group">
+                <label>API Key</label>
+                <input type="password" id="stepfun-key" placeholder="sk-...">
+                <p class="help-text">从 <a href="https://platform.stepfun.com/" target="_blank">StepFun 平台</a> 获取</p>
+            </div>
+            
+            <div class="form-group">
+                <label>模型</label>
+                <select id="stepfun-model">
+                    <option value="step-1-8k" selected>step-1-8k</option>
+                    <option value="step-1-32k">step-1-32k</option>
+                    <option value="step-1-128k">step-1-128k</option>
+                    <option value="step-1-flash">step-1-flash</option>
+                </select>
+            </div>
+        </div>
+        
         <div class="card">
             <div class="card-title">
                 <div class="icon">🧪</div>
@@ -399,6 +431,10 @@
                         document.getElementById('lmstudio-url').value = config.lmstudio.url || 'http://localhost:1234/v1';
                         document.getElementById('lmstudio-model').value = config.lmstudio.model || '';
                     }
+                    if (config.stepfun) {
+                        document.getElementById('stepfun-key').value = config.stepfun.key || '';
+                        document.getElementById('stepfun-model').value = config.stepfun.model || 'step-1-8k';
+                    }
                 }
             } catch (err) {
                 console.log('No saved config');
@@ -426,6 +462,10 @@
                 lmstudio: {
                     url: document.getElementById('lmstudio-url').value,
                     model: document.getElementById('lmstudio-model').value
+                },
+                stepfun: {
+                    key: document.getElementById('stepfun-key').value,
+                    model: document.getElementById('stepfun-model').value
                 }
             };
             
