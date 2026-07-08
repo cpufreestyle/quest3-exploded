@@ -22,6 +22,7 @@ import http from "http";
 import { execFile } from "child_process";
 import { promisify } from "util";
 import fs from "fs";
+import { getCORSHeaders } from "./src/server-utils.js";
 import path from "path";
 import os from "os";
 import { fileURLToPath } from "url";
@@ -296,6 +297,9 @@ function parseMultipartBuffer(buffer, boundary) {
       throw new Error(`multipart part 数量超过限制 (${MAX_PARTS})`);
     }
 
+    // 关键修复：先更新 start，避免 continue 跳过导致死循环
+    start = nextBoundary;
+
     // 提取 part 数据
     const partData = buffer.slice(afterBoundary, nextBoundary);
 
@@ -335,8 +339,6 @@ function parseMultipartBuffer(buffer, boundary) {
         data: buffer.slice(bodyStart, bodyEnd),
       });
     }
-
-    start = nextBoundary;
   }
 
   return parts.length > 0 ? parts[0] : null;
@@ -351,10 +353,7 @@ function sendJSON(res, statusCode, data) {
   const json = JSON.stringify(data);
   res.writeHead(statusCode, {
     "Content-Type": "application/json; charset=utf-8",
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, X-Manifest",
-    "Access-Control-Expose-Headers": "X-Manifest, X-Total-Parts, X-Elapsed-Seconds, X-Success",
+    ...getCORSHeaders(),
   });
   res.end(json);
 }
@@ -371,10 +370,7 @@ function sendBinaryResult(res, glbBuffer, manifest, elapsed) {
   res.writeHead(200, {
     "Content-Type": "application/octet-stream",
     "Content-Length": glbBuffer.length,
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, X-Manifest",
-    "Access-Control-Expose-Headers": "X-Manifest, X-Total-Parts, X-Elapsed-Seconds, X-Success",
+    ...getCORSHeaders(),
     "X-Success": "true",
     "X-Total-Parts": String(manifest.total_parts || 0),
     "X-Elapsed-Seconds": elapsed,
@@ -892,12 +888,7 @@ async function handleSplit(req, res) {
 const server = http.createServer(async (req, res) => {
   // CORS 预检
   if (req.method === "OPTIONS") {
-    res.writeHead(204, {
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type, X-Manifest",
-      "Access-Control-Expose-Headers": "X-Manifest, X-Total-Parts, X-Elapsed-Seconds, X-Success",
-    });
+    res.writeHead(204, getCORSHeaders());
     res.end();
     return;
   }

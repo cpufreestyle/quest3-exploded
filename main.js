@@ -501,6 +501,102 @@ scene.add(customModelGroup);
 let customModelParts = []; // 存储自定义模型的部件
 let hasCustomModel = false;
 
+// ===== 自定义模型公共工具函数（提取重复逻辑）=====
+
+/**
+ * 清除自定义模型组中的所有子对象
+ * 同时 dispose 几何体和材质以释放 GPU 内存
+ */
+function clearCustomModelGroup() {
+  while (customModelGroup.children.length > 0) {
+    const child = customModelGroup.children[0];
+    // dispose 几何体和材质
+    if (child.geometry) child.geometry.dispose();
+    if (child.material) {
+      if (Array.isArray(child.material)) {
+        child.material.forEach(m => m.dispose());
+      } else {
+        child.material.dispose();
+      }
+    }
+    customModelGroup.remove(child);
+  }
+  customModelParts = [];
+  customModelGroup.scale.set(1, 1, 1);
+  customModelGroup.position.set(0, 0, 0);
+}
+
+/**
+ * 自动放大微小模型
+ * 如果模型最大维度小于 5，自动缩放到约 10 单位
+ * @param {string} modelType - 模型类型名称（用于日志）
+ * @returns {number} 实际应用的缩放比例
+ */
+function autoScaleModel(modelType = "模型") {
+  const autoBox = new THREE.Box3().setFromObject(customModelGroup);
+  const autoSize = new THREE.Vector3();
+  autoBox.getSize(autoSize);
+  const autoMaxDim = Math.max(autoSize.x, autoSize.y, autoSize.z);
+
+  let autoScale = 1.0;
+  if (autoMaxDim < 5.0 && autoMaxDim > 0.001) {
+    autoScale = 10.0 / autoMaxDim;
+    autoScale = Math.min(autoScale, 20);
+  }
+
+  if (autoScale > 1.0) {
+    customModelGroup.scale.set(autoScale, autoScale, autoScale);
+    console.log(`🔍 ${modelType}自动放大 ${autoScale.toFixed(1)} 倍`);
+  }
+
+  return autoScale;
+}
+
+/**
+ * 智能调整所有自定义部件的爆炸距离
+ * 根据相机位置和模型大小计算合适的爆炸距离
+ */
+function adjustSmartExplodeDistances() {
+  requestAnimationFrame(() => {
+    const groupScale = customModelGroup.scale.x || 1;
+    for (let i = 0; i < customModelParts.length; i++) {
+      const part = customModelParts[i];
+      let explodeDir = part.explodePos.clone();
+      if (explodeDir.length() < 0.001) {
+        explodeDir = part.partCenter.clone();
+        if (explodeDir.length() < 0.001) {
+          const angle = (i / customModelParts.length) * Math.PI * 2;
+          explodeDir.set(Math.cos(angle), 0.5, Math.sin(angle));
+        }
+      }
+      explodeDir.normalize();
+      const smartDist = calculateSmartExplodeDist(customModelGroup, explodeDir);
+      part.explodePos.copy(explodeDir.multiplyScalar(smartDist / groupScale));
+    }
+    console.log("✅ 爆炸距离已智能调整");
+  });
+}
+
+/**
+ * 为自定义部件计算爆炸方向和位置
+ * @param {THREE.Vector3} partCenter - 部件中心
+ * @param {number} index - 部件索引
+ * @param {number} totalParts - 总部件数
+ * @returns {THREE.Vector3} 爆炸位置
+ */
+function calculateExplodePos(partCenter, index, totalParts) {
+  let explodeDir;
+  const distFromCenter = partCenter.length();
+  if (distFromCenter < 0.001) {
+    const angle = (index / totalParts) * Math.PI * 2;
+    explodeDir = new THREE.Vector3(Math.cos(angle), Math.sin(angle), 0);
+  } else {
+    explodeDir = partCenter.clone().normalize();
+  }
+  const initialDist = Math.max(distFromCenter * 3, 1.0);
+  return explodeDir.multiplyScalar(initialDist);
+}
+
 // ===== 模型自动拆分系统 =====
 
 // Union-Find 数据结构（用于连通分量分析）
@@ -1281,12 +1377,7 @@ async function loadSTLModel(arrayBuffer, fileName) {
     const geometry = loader.parse(arrayBuffer);
 
     // 清除之前的自定义模型
-    while (customModelGroup.children.length > 0) {
-      customModelGroup.remove(customModelGroup.children[0]);
-    }
-    customModelParts = [];
-    customModelGroup.scale.set(1, 1, 1);
-    customModelGroup.position.set(0, 0, 0);
+    clearCustomModelGroup();
 
     // 居中几何体
     geometry.computeBoundingBox();
@@ -1364,21 +1455,7 @@ async function loadSTLModel(arrayBuffer, fileName) {
     );
 
     // ========== 自动放大微小的模型 ==========
-    const autoBox = new THREE.Box3().setFromObject(customModelGroup);
-    const autoSize = new THREE.Vector3();
-    autoBox.getSize(autoSize);
-    const autoMaxDim = Math.max(autoSize.x, autoSize.y, autoSize.z);
-
-    let autoScale = 1.0;
-    if (autoMaxDim < 5.0 && autoMaxDim > 0.001) {
-      autoScale = 10.0 / autoMaxDim;
-      autoScale = Math.min(autoScale, 20);
-    }
-
-    if (autoScale > 1.0) {
-      customModelGroup.scale.set(autoScale, autoScale, autoScale);
-      console.log(`🔍 STL 模型自动放大 ${autoScale.toFixed(1)} 倍`);
-    }
+    autoScaleModel("STL");
 
     // 自动适配相机
     fitCameraToModel(customModelGroup, false);
@@ -1477,12 +1554,7 @@ async function loadURDFModel(urdfText, fileName) {
     });
 
     // 清除之前的自定义模型
-    while (customModelGroup.children.length > 0) {
-      customModelGroup.remove(customModelGroup.children[0]);
-    }
-    customModelParts = [];
-    customModelGroup.scale.set(1, 1, 1);
-    customModelGroup.position.set(0, 0, 0);
+    clearCustomModelGroup();
 
     // ── 为每个 link 创建 mesh，变换烘焙到几何体 ──
     const splitParts = [];
@@ -1592,17 +1664,7 @@ async function loadURDFModel(urdfText, fileName) {
       const partCenter = partBox.getCenter(new THREE.Vector3());
 
       // 爆炸方向：从模型中心指向部件中心
-      let explodeDir;
-      const distFromCenter = partCenter.length();
-      if (distFromCenter < 0.001) {
-        const angle = (i / splitParts.length) * Math.PI * 2;
-        explodeDir = new THREE.Vector3(Math.cos(angle), Math.sin(angle), 0);
-      } else {
-        explodeDir = partCenter.clone().normalize();
-      }
-
-      const initialDist = Math.max(distFromCenter * 3, 1.0);
-      const explodePos = explodeDir.multiplyScalar(initialDist);
+      const explodePos = calculateExplodePos(partCenter, i, splitParts.length);
 
       customModelParts.push({
         mesh,
@@ -1675,44 +1737,13 @@ async function loadURDFModel(urdfText, fileName) {
     showStatus(`✅ URDF 解析完成：${partCount} 个 link（部件）${meshNote}`, "success");
 
     // ========== 自动放大微小的模型 ==========
-    const autoBox = new THREE.Box3().setFromObject(customModelGroup);
-    const autoSize = new THREE.Vector3();
-    autoBox.getSize(autoSize);
-    const autoMaxDim = Math.max(autoSize.x, autoSize.y, autoSize.z);
-
-    let autoScale = 1.0;
-    if (autoMaxDim < 5.0 && autoMaxDim > 0.001) {
-      autoScale = 10.0 / autoMaxDim;
-      autoScale = Math.min(autoScale, 20);
-    }
-
-    if (autoScale > 1.0) {
-      customModelGroup.scale.set(autoScale, autoScale, autoScale);
-      console.log(`🔍 URDF 模型自动放大 ${autoScale.toFixed(1)} 倍`);
-    }
+    autoScaleModel("URDF");
 
     // 自动适配相机
     fitCameraToModel(customModelGroup, false);
 
     // ========== 智能调整爆炸距离 ==========
-    requestAnimationFrame(() => {
-      const groupScale = customModelGroup.scale.x || 1;
-      for (let i = 0; i < customModelParts.length; i++) {
-        const part = customModelParts[i];
-        let explodeDir = part.explodePos.clone();
-        if (explodeDir.length() < 0.001) {
-          explodeDir = part.partCenter.clone();
-          if (explodeDir.length() < 0.001) {
-            const angle = (i / customModelParts.length) * Math.PI * 2;
-            explodeDir.set(Math.cos(angle), 0.5, Math.sin(angle));
-          }
-        }
-        explodeDir.normalize();
-        const smartDist = calculateSmartExplodeDist(customModelGroup, explodeDir);
-        part.explodePos.copy(explodeDir.multiplyScalar(smartDist / groupScale));
-      }
-      console.log("✅ URDF 爆炸距离已智能调整");
-    });
+    adjustSmartExplodeDistances();
 
     // 默认合体状态（不自动爆炸）
     goToStep(0);
@@ -1740,12 +1771,7 @@ async function loadCustomModel(arrayBuffer, fileName, blenderManifest = null) {
     });
 
     // 清除之前的自定义模型
-    while (customModelGroup.children.length > 0) {
-      customModelGroup.remove(customModelGroup.children[0]);
-    }
-    customModelParts = [];
-    customModelGroup.scale.set(1, 1, 1);
-    customModelGroup.position.set(0, 0, 0);
+    clearCustomModelGroup();
 
     const model = gltf.scene;
     model.updateMatrixWorld(true);
@@ -1803,19 +1829,7 @@ async function loadCustomModel(arrayBuffer, fileName, blenderManifest = null) {
       const partCenter = partBox.getCenter(new THREE.Vector3());
 
       // 爆炸方向：从模型中心指向部件中心
-      let explodeDir;
-      const distFromCenter = partCenter.length();
-      if (distFromCenter < 0.001) {
-        // 部件在中心，随机分配一个方向
-        const angle = (i / splitParts.length) * Math.PI * 2;
-        explodeDir = new THREE.Vector3(Math.cos(angle), Math.sin(angle), 0);
-      } else {
-        explodeDir = partCenter.clone().normalize();
-      }
-
-      // 初始爆炸距离（后面会用智能计算调整）
-      const initialDist = Math.max(distFromCenter * 3, 1.0);
-      const explodePos = explodeDir.multiplyScalar(initialDist);
+      const explodePos = calculateExplodePos(partCenter, i, splitParts.length);
 
       customModelParts.push({
         mesh,
@@ -1948,46 +1962,13 @@ async function loadCustomModel(arrayBuffer, fileName, blenderManifest = null) {
     showStatus(`✅ 成功加载：${fileName}\n自动拆分为 ${partCount} 个部件`, "success");
 
     // ========== 自动放大微小的模型 ==========
-    const autoBox = new THREE.Box3().setFromObject(customModelGroup);
-    const autoSize = new THREE.Vector3();
-    autoBox.getSize(autoSize);
-    const autoMaxDim = Math.max(autoSize.x, autoSize.y, autoSize.z);
-
-    let autoScale = 1.0;
-    if (autoMaxDim < 5.0) {
-      autoScale = 10.0 / autoMaxDim;
-      autoScale = Math.min(autoScale, 20);
-    }
-
-    if (autoScale > 1.0) {
-      customModelGroup.scale.set(autoScale, autoScale, autoScale);
-      console.log(`🔍 模型自动放大 ${autoScale.toFixed(1)} 倍`);
-    }
+    autoScaleModel();
 
     // 自动适配相机
     fitCameraToModel(customModelGroup, false);
 
     // ========== 智能调整爆炸距离 ==========
-    requestAnimationFrame(() => {
-      const groupScale = customModelGroup.scale.x || 1;
-      for (let i = 0; i < customModelParts.length; i++) {
-        const part = customModelParts[i];
-        // 防止零向量 normalize 产生 NaN
-        let explodeDir = part.explodePos.clone();
-        if (explodeDir.length() < 0.001) {
-          // 用 partCenter 方向替代
-          explodeDir = part.partCenter.clone();
-          if (explodeDir.length() < 0.001) {
-            const angle = (i / customModelParts.length) * Math.PI * 2;
-            explodeDir.set(Math.cos(angle), 0.5, Math.sin(angle));
-          }
-        }
-        explodeDir.normalize();
-        const smartDist = calculateSmartExplodeDist(customModelGroup, explodeDir);
-        part.explodePos.copy(explodeDir.multiplyScalar(smartDist / groupScale));
-      }
-      console.log("✅ 爆炸距离已智能调整");
-    });
+    adjustSmartExplodeDistances();
 
     // 默认合体状态（不自动爆炸）
     goToStep(0);
@@ -2047,13 +2028,8 @@ function updateCustomModelUI(partCount, fileName) {
 }
 
 function clearCustomModel() {
-  while (customModelGroup.children.length > 0) {
-    customModelGroup.remove(customModelGroup.children[0]);
-  }
-  customModelParts = [];
+  clearCustomModelGroup();
   hasCustomModel = false;
-  customModelGroup.scale.set(1, 1, 1);
-  customModelGroup.position.set(0, 0, 0);
 
   // 恢复默认模型可见性
   questGroup.visible = true;
@@ -2349,6 +2325,7 @@ function updateStepUI() {
 // 退出鼠标控制模式，将当前 mouseFactor 同步到 currentStep/displayedStep
 function exitMouseControl() {
   mouseControlEnabled = false;
+  needsExplodeUpdate = true; // 标记需要重新计算
   isExploded = false;
   explodeBtn?.classList.remove("exploded");
   if (explodeBtn) explodeBtn.textContent = "💥 爆炸";
@@ -2361,6 +2338,7 @@ function goToStep(newStep) {
   newStep = THREE.MathUtils.clamp(newStep, 0, totalSteps);
   if (newStep === displayedStep || isAnimating) return;
 
+  needsExplodeUpdate = true; // 标记需要重新计算部件位置
   animationFrom = currentStep;
   animatingStep = newStep;
   animationStart = performance.now();
@@ -2468,6 +2446,7 @@ let isExploded = false;
 function toggleExplode() {
   isExploded = !isExploded;
   mouseControlEnabled = isExploded;
+  needsExplodeUpdate = true; // 标记需要重新计算
 
   if (isExploded) {
     // 进入爆炸模式，启用鼠标控制
@@ -2502,6 +2481,7 @@ if (depthSlider && depthValueEl) {
 
     // 如果不在动画中，直接应用
     if (!isAnimating) {
+      needsExplodeUpdate = true; // 标记需要重新计算
       currentStep = factor * totalSteps;
       displayedStep = Math.round(currentStep);
       updateStepUI();
@@ -2646,6 +2626,9 @@ function smoothStep(edge0, edge1, x) {
   return t * t * (3 - 2 * t);
 }
 
+// 优化：脏标记，避免每帧都重新计算部件位置
+let needsExplodeUpdate = true;
+
 function updateExplodedView(now) {
   if (isAnimating) {
     const elapsed = now - animationStart;
@@ -2658,46 +2641,38 @@ function updateExplodedView(now) {
 
     const eased = easeOutCubic(progress);
     currentStep = animationFrom + (animatingStep - animationFrom) * eased;
+    needsExplodeUpdate = true; // 动画中每帧都需要更新
   }
 
+  // 优化：如果状态未变化，跳过部件位置计算
+  if (!needsExplodeUpdate) return;
+
   // 如果启用了鼠标控制，使用鼠标因子
-  const controlFactor = mouseControlEnabled ? mouseFactor : currentStep / totalSteps;
   const globalFactor = mouseControlEnabled ? mouseFactor : currentStep / totalSteps;
   axisMat.opacity = globalFactor * 0.5;
 
-  // Quest 3 默认部件
-  parts.forEach(part => {
-    // 计算该部件的炸开因子
-    let partFactor;
-    if (mouseControlEnabled) {
-      // 鼠标控制模式：基于全局 mouseFactor 计算
-      partFactor = smoothStep(part.stepIndex - 1, part.stepIndex, mouseFactor * totalSteps);
-    } else {
-      // 步骤控制模式：基于 currentStep
-      partFactor = smoothStep(part.stepIndex - 1, part.stepIndex, currentStep);
-    }
+  // 统一的部件更新函数（避免重复代码）
+  const updatePart = part => {
+    const controlValue = mouseControlEnabled ? mouseFactor * totalSteps : currentStep;
+    const partFactor = smoothStep(part.stepIndex - 1, part.stepIndex, controlValue);
 
     part.mesh.position.lerpVectors(part.homePos, part.explodePos, partFactor);
     part.mesh.rotation.x = THREE.MathUtils.lerp(part.homeRot.x, part.explodeRot.x, partFactor);
     part.mesh.rotation.y = THREE.MathUtils.lerp(part.homeRot.y, part.explodeRot.y, partFactor);
     part.mesh.rotation.z = THREE.MathUtils.lerp(part.homeRot.z, part.explodeRot.z, partFactor);
-  });
+  };
+
+  // Quest 3 默认部件
+  parts.forEach(updatePart);
 
   // 自定义模型部件（渐进式拆解，每个部件有自己的 stepIndex）
   if (hasCustomModel && customModelParts.length > 0) {
-    customModelParts.forEach(part => {
-      let partFactor;
-      if (mouseControlEnabled) {
-        partFactor = smoothStep(part.stepIndex - 1, part.stepIndex, mouseFactor * totalSteps);
-      } else {
-        partFactor = smoothStep(part.stepIndex - 1, part.stepIndex, currentStep);
-      }
+    customModelParts.forEach(updatePart);
+  }
 
-      part.mesh.position.lerpVectors(part.homePos, part.explodePos, partFactor);
-      part.mesh.rotation.x = THREE.MathUtils.lerp(part.homeRot.x, part.explodeRot.x, partFactor);
-      part.mesh.rotation.y = THREE.MathUtils.lerp(part.homeRot.y, part.explodeRot.y, partFactor);
-      part.mesh.rotation.z = THREE.MathUtils.lerp(part.homeRot.z, part.explodeRot.z, partFactor);
-    });
+  // 非动画、非鼠标控制时，标记为已更新
+  if (!isAnimating && !mouseControlEnabled) {
+    needsExplodeUpdate = false;
   }
 }
 
@@ -2713,8 +2688,8 @@ function animate(now) {
   requestAnimationFrame(animate);
   updateExplodedView(now);
 
-  // 粒子动画（缓慢旋转）
-  if (particlesMesh) {
+  // 粒子动画（缓慢旋转）— 仅在可见时更新
+  if (particlesMesh && particlesMesh.visible) {
     particlesMesh.rotation.y = now * 0.00005;
     particlesMesh.rotation.x = now * 0.00003;
   }

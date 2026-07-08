@@ -22,7 +22,11 @@ export default [
         document: 'readonly',
         window: 'readonly',
         THREE: 'readonly',
-        console: 'readonly'
+        console: 'readonly',
+        Buffer: 'readonly',
+        process: 'readonly',
+        atob: 'readonly',
+        TextDecoder: 'readonly'
       }
     },
     rules: {
@@ -49,7 +53,7 @@ export default [
     }
   },
   {
-    files: ['server.js'],
+    files: ['server.js', 'src/server-utils.js'],
     languageOptions: {
       ecmaVersion: 'latest',
       sourceType: 'module',
@@ -58,7 +62,9 @@ export default [
         Buffer: 'readonly',
         console: 'readonly',
         module: 'readonly',
-        require: 'readonly'
+        require: 'readonly',
+        fetch: 'readonly',
+        URL: 'readonly'
       }
     },
     rules: {
