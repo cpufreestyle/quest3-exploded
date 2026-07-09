@@ -74,7 +74,7 @@ function uploadFile(url, filePath, fieldName = "file") {
     const header = Buffer.from(
       `--${boundary}\r\n` +
         `Content-Disposition: form-data; name="${fieldName}"; filename="${fileName}"\r\n` +
-        "Content-Type: application/octet-stream\r\n\r\n"
+        "Content-Type: application/octet-stream\r\n\r\n",
     );
     const footer = Buffer.from(`\r\n--${boundary}--\r\n`);
     const body = Buffer.concat([header, fileData, footer]);

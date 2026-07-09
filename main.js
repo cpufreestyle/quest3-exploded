@@ -820,7 +820,7 @@ function autoSplitModel(model) {
       for (const gr of groupResults) {
         const newMesh = new THREE.Mesh(
           gr.geometry,
-          Array.isArray(material) ? material[gr.materialIndex] || material[0] : material
+          Array.isArray(material) ? material[gr.materialIndex] || material[0] : material,
         );
         newMesh.matrix.copy(mesh.matrixWorld);
         newMesh.matrixAutoUpdate = false;
@@ -973,7 +973,7 @@ function assignQuest3PartNames(parts, modelBox) {
   const halfExtents = new THREE.Vector3(
     Math.max(size.x / 2, 0.001),
     Math.max(size.y / 2, 0.001),
-    Math.max(size.z / 2, 0.001)
+    Math.max(size.z / 2, 0.001),
   );
 
   // 将每个部件的中心位置归一化到 [-1, 1]
@@ -981,7 +981,7 @@ function assignQuest3PartNames(parts, modelBox) {
     return new THREE.Vector3(
       part.partCenter.x / halfExtents.x,
       part.partCenter.y / halfExtents.y,
-      part.partCenter.z / halfExtents.z
+      part.partCenter.z / halfExtents.z,
     );
   });
 
@@ -1027,7 +1027,7 @@ function assignQuest3PartNames(parts, modelBox) {
     parts.map((p, i) => ({
       name: assignments[i],
       center: p.partCenter.toArray().map(v => v.toFixed(2)),
-    }))
+    })),
   );
 
   return assignments;
@@ -1090,7 +1090,7 @@ function mergePartsToQuest3(splitParts, modelBox) {
   const halfExtents = new THREE.Vector3(
     Math.max(size.x / 2, 0.001),
     Math.max(size.y / 2, 0.001),
-    Math.max(size.z / 2, 0.001)
+    Math.max(size.z / 2, 0.001),
   );
 
   // 为每个 splitPart 找最近的 Quest 3 模板
@@ -1150,9 +1150,9 @@ function mergePartsToQuest3(splitParts, modelBox) {
       const mergedGeo = mergeGeometries(geometries);
       // 使用第一个 mesh 的材质
       const firstMesh = meshes[0];
-      const material = Array.isArray(firstMesh.material)
-        ? firstMesh.material[0]
-        : firstMesh.material;
+      const material = Array.isArray(firstMesh.material) ?
+        firstMesh.material[0] :
+        firstMesh.material;
       const newMesh = new THREE.Mesh(mergedGeo, material);
       newMesh.position.set(0, 0, 0);
       newMesh.rotation.set(0, 0, 0);
@@ -1206,7 +1206,7 @@ function splitModelToQuest3Regions(model) {
   const halfExtents = new THREE.Vector3(
     Math.max(size.x / 2, 0.001),
     Math.max(size.y / 2, 0.001),
-    Math.max(size.z / 2, 0.001)
+    Math.max(size.z / 2, 0.001),
   );
 
   // 3. 居中所有几何体
@@ -1296,10 +1296,10 @@ function splitModelToQuest3Regions(model) {
     const sourceFaces = templateFaces[bestSourceT].faces;
     sourceFaces.sort((a, b) => {
       const da = Math.sqrt(
-        (a.nx - emptyPos[0]) ** 2 + (a.ny - emptyPos[1]) ** 2 * 0.7 + (a.nz - emptyPos[2]) ** 2
+        (a.nx - emptyPos[0]) ** 2 + (a.ny - emptyPos[1]) ** 2 * 0.7 + (a.nz - emptyPos[2]) ** 2,
       );
       const db = Math.sqrt(
-        (b.nx - emptyPos[0]) ** 2 + (b.ny - emptyPos[1]) ** 2 * 0.7 + (b.nz - emptyPos[2]) ** 2
+        (b.nx - emptyPos[0]) ** 2 + (b.ny - emptyPos[1]) ** 2 * 0.7 + (b.nz - emptyPos[2]) ** 2,
       );
       return da - db;
     });
@@ -1307,7 +1307,7 @@ function splitModelToQuest3Regions(model) {
     // 借取最近的 15% 面（至少 5 个，最多 50%）
     const stealCount = Math.max(
       5,
-      Math.min(Math.floor(sourceFaces.length * 0.15), Math.floor(sourceFaces.length * 0.5))
+      Math.min(Math.floor(sourceFaces.length * 0.15), Math.floor(sourceFaces.length * 0.5)),
     );
     const stolenFaces = sourceFaces.splice(0, stealCount);
     templateFaces[t].faces = stolenFaces;
@@ -1316,7 +1316,7 @@ function splitModelToQuest3Regions(model) {
     }
 
     console.log(
-      `🔄 面重分配: "${QUEST3_PART_TEMPLATES[t].name}" 从 "${QUEST3_PART_TEMPLATES[bestSourceT].name}" 借取 ${stealCount} 个面`
+      `🔄 面重分配: "${QUEST3_PART_TEMPLATES[t].name}" 从 "${QUEST3_PART_TEMPLATES[bestSourceT].name}" 借取 ${stealCount} 个面`,
     );
   }
 
@@ -1451,7 +1451,7 @@ async function loadSTLModel(arrayBuffer, fileName) {
     if (typeof updateStepUI === "function") updateStepUI();
     showStatus(
       "✅ STL 模型加载完成（单部件）\n💡 提示: 启动 Blender 后端可获得自动拆解",
-      "success"
+      "success",
     );
 
     // ========== 自动放大微小的模型 ==========
@@ -1502,10 +1502,12 @@ async function loadURDFModel(urdfText, fileName) {
       const parent = joint.querySelector("parent")?.getAttribute("link");
       const child = joint.querySelector("child")?.getAttribute("link");
       const origin = joint.querySelector("origin");
-      const originXYZ = origin?.getAttribute("xyz")?.trim().split(/\s+/).map(parseFloat) || [
+      const originXYZ = origin?.getAttribute("xyz")?.trim().split(/\s+/)
+        .map(parseFloat) || [
         0, 0, 0,
       ];
-      const originRPY = origin?.getAttribute("rpy")?.trim().split(/\s+/).map(parseFloat) || [
+      const originRPY = origin?.getAttribute("rpy")?.trim().split(/\s+/)
+        .map(parseFloat) || [
         0, 0, 0,
       ];
       const jointName = joint.getAttribute("name") || "joint";
@@ -1571,10 +1573,12 @@ async function loadURDFModel(urdfText, fileName) {
 
       // 获取 visual origin
       const visOrigin = visual?.querySelector("origin");
-      const visXYZ = visOrigin?.getAttribute("xyz")?.trim().split(/\s+/).map(parseFloat) || [
+      const visXYZ = visOrigin?.getAttribute("xyz")?.trim().split(/\s+/)
+        .map(parseFloat) || [
         0, 0, 0,
       ];
-      const visRPY = visOrigin?.getAttribute("rpy")?.trim().split(/\s+/).map(parseFloat) || [
+      const visRPY = visOrigin?.getAttribute("rpy")?.trim().split(/\s+/)
+        .map(parseFloat) || [
         0, 0, 0,
       ];
 
@@ -1586,7 +1590,8 @@ async function loadURDFModel(urdfText, fileName) {
       // 创建几何体
       let geometry;
       if (boxEl) {
-        const size = boxEl.getAttribute("size")?.trim().split(/\s+/).map(parseFloat) || [
+        const size = boxEl.getAttribute("size")?.trim().split(/\s+/)
+          .map(parseFloat) || [
           0.1, 0.1, 0.1,
         ];
         geometry = new THREE.BoxGeometry(size[0] || 0.1, size[1] || 0.1, size[2] || 0.1);
@@ -1731,9 +1736,9 @@ async function loadURDFModel(urdfText, fileName) {
     updateStepUI();
 
     const meshNote =
-      partCount > 0 && splitParts[0]?.mesh?.userData?.meshFile
-        ? `\n⚠️ 注意: URDF 引用的 mesh 文件 (${splitParts[0].mesh.userData.meshFile}) 需单独上传\n当前使用占位几何体`
-        : "";
+      partCount > 0 && splitParts[0]?.mesh?.userData?.meshFile ?
+        `\n⚠️ 注意: URDF 引用的 mesh 文件 (${splitParts[0].mesh.userData.meshFile}) 需单独上传\n当前使用占位几何体` :
+        "";
     showStatus(`✅ URDF 解析完成：${partCount} 个 link（部件）${meshNote}`, "success");
 
     // ========== 自动放大微小的模型 ==========
@@ -1864,7 +1869,7 @@ async function loadCustomModel(arrayBuffer, fileName, blenderManifest = null) {
         for (let i = 0; i < customModelParts.length; i++) {
           if (used.has(i)) continue;
           const d = customModelParts[i].partCenter.distanceTo(
-            new THREE.Vector3(targetCenter[0], targetCenter[1], targetCenter[2])
+            new THREE.Vector3(targetCenter[0], targetCenter[1], targetCenter[2]),
           );
           if (d < bestDist) {
             bestDist = d;
@@ -2131,7 +2136,7 @@ function updateToolsList(step) {
   const tools = step.tools || [];
 
   if (tools.length === 0) {
-    toolsListEl.innerHTML = '<div class="tools-none">✅ 本步骤无需工具</div>';
+    toolsListEl.innerHTML = "<div class=\"tools-none\">✅ 本步骤无需工具</div>";
   } else {
     toolsListEl.innerHTML = tools.map(tool => `<div class="tool-item">${tool}</div>`).join("");
   }
@@ -2163,7 +2168,7 @@ parts.forEach(part => {
 
 console.log(
   "部件步骤分配：",
-  parts.map(p => `${p.mesh.userData.name}->步骤${p.stepIndex}`)
+  parts.map(p => `${p.mesh.userData.name}->步骤${p.stepIndex}`),
 );
 
 // ===== 步骤控制 UI =====
@@ -2769,7 +2774,7 @@ function setupUpload() {
           if (pct < 100) {
             showStatus(
               `📤 上传中... ${pct}% (${(e.loaded / 1024).toFixed(0)} / ${(e.total / 1024).toFixed(0)} KB)`,
-              "info"
+              "info",
             );
           } else {
             showStatus("🔧 Blender 正在拆解模型... (已上传)", "info");
@@ -2799,7 +2804,7 @@ function setupUpload() {
             for (let i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i);
             showStatus(
               `✅ Blender 拆解完成：${data.total_parts} 个部件 (${data.elapsed_seconds}s)`,
-              "success"
+              "success",
             );
             resolve({ arrayBuffer: bytes.buffer, manifest: data });
             return;
@@ -3014,7 +3019,7 @@ function setupAIPaint() {
       // 计算缩放比例
       const scale = Math.min(
         SAMPLE_SIZE / imgElement.naturalWidth,
-        SAMPLE_SIZE / imgElement.naturalHeight
+        SAMPLE_SIZE / imgElement.naturalHeight,
       );
       const w = Math.max(1, Math.round(imgElement.naturalWidth * scale));
       const h = Math.max(1, Math.round(imgElement.naturalHeight * scale));
@@ -3171,18 +3176,18 @@ function setupAIPaint() {
 
       // 创建 Image 对象提取特征
       const img = new Image();
-      img.onload = async () => {
+      img.onload = async() => {
         uploadedImageFeatures = await extractImageFeatures(img);
         if (uploadedImageFeatures) {
           const colorSwatches = uploadedImageFeatures.dominantColors
             .map(
               c =>
-                `<span class="ai-paint-color-swatch" style="background:rgb(${c.r},${c.g},${c.b})" title="rgb(${c.r},${c.g},${c.b}) ${(c.ratio * 100).toFixed(0)}%"></span>`
+                `<span class="ai-paint-color-swatch" style="background:rgb(${c.r},${c.g},${c.b})" title="rgb(${c.r},${c.g},${c.b}) ${(c.ratio * 100).toFixed(0)}%"></span>`,
             )
             .join("");
           showAIStatus(
             `🖼️ 已提取图片特征: ${uploadedImageFeatures.mood}色调 · 对称度${(uploadedImageFeatures.symmetry * 100).toFixed(0)}% · 边缘密度${(uploadedImageFeatures.edgeDensity * 100).toFixed(0)}%<div class="ai-paint-color-swatches">${colorSwatches}</div>`,
-            "info"
+            "info",
           );
         }
       };
@@ -3251,7 +3256,7 @@ function setupAIPaint() {
     const imgHint = uploadedImageFeatures ? "（含图片特征）" : "";
     showAIStatus(
       `<span class="ai-paint-spinner"></span>正在生成 "${prompt}" ${imgHint}...（Blender 处理中，约10-30秒）`,
-      "info"
+      "info",
     );
 
     try {
@@ -3300,7 +3305,7 @@ function setupAIPaint() {
         });
 
         xhr.addEventListener("error", () =>
-          reject(new Error("网络错误：无法连接到服务器（请确认 server.js 已启动）"))
+          reject(new Error("网络错误：无法连接到服务器（请确认 server.js 已启动）")),
         );
         xhr.addEventListener("timeout", () => reject(new Error("请求超时（2分钟）")));
 
@@ -3316,7 +3321,7 @@ function setupAIPaint() {
       // 成功！加载模型到场景
       showAIStatus(
         `✅ 生成成功！${result.totalParts} 个部件 (${result.elapsedSeconds}s)\n正在加载到场景...`,
-        "success"
+        "success",
       );
 
       const fileName = `AI: ${prompt}`;
@@ -3325,7 +3330,7 @@ function setupAIPaint() {
       // 更新状态
       showAIStatus(
         `✅ "${prompt}" 已加载\n${result.totalParts} 个部件 · 点击"💥 爆炸"可拆解`,
-        "success"
+        "success",
       );
 
       // 添加到画廊
@@ -3343,7 +3348,7 @@ function setupAIPaint() {
       // 同时更新上传区域的状态
       showStatus(
         `✅ AI 绘画：${prompt}\n${result.totalParts} 个部件 · 点击爆炸按钮拆解`,
-        "success"
+        "success",
       );
 
       console.log(`✅ AI 绘画完成: ${result.totalParts} 个部件`);
@@ -3463,7 +3468,7 @@ function updateStepDescAnimation() {
 
 // 在 updateStepUI 的最后调用动画
 const originalUpdateStepUI = updateStepUI;
-updateStepUI = function () {
+updateStepUI = function() {
   originalUpdateStepUI();
   updateStepDescAnimation();
 };
@@ -3511,7 +3516,7 @@ function updateARButton() {
 async function startAR() {
   if (!arSupported) {
     alert(
-      "您的设备不支持 AR 功能\n\n支持的设备：\n- Android Chrome\n- iOS Safari 15+\n\n请确保使用 HTTPS 访问。"
+      "您的设备不支持 AR 功能\n\n支持的设备：\n- Android Chrome\n- iOS Safari 15+\n\n请确保使用 HTTPS 访问。",
     );
     return;
   }
@@ -3574,7 +3579,7 @@ async function startAR() {
       70,
       window.innerWidth / window.innerHeight,
       0.01,
-      20
+      20,
     );
 
     // 启用 hit-test：先设置 session，再初始化 hit-test source
@@ -3673,7 +3678,7 @@ async function startAR() {
     alert(
       "启动 AR 失败：" +
         err.message +
-        "\n\n请确保：\n1. 使用 HTTPS\n2. 设备支持 AR\n3. 授予相机权限"
+        "\n\n请确保：\n1. 使用 HTTPS\n2. 设备支持 AR\n3. 授予相机权限",
     );
     onAREnd();
   }
