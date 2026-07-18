@@ -85,8 +85,11 @@ def main():
 
     if args.remove_bg:
         try:
-            img = remove_background(img, rembg_session="u2net")
-            img = resize_foreground(img, args.foreground_ratio)
+            # 直接用 rembg 2.x 的 remove（返回 RGBA，默认加载 ~/.u2net/u2net.onnx），
+            # 避免 TriPoSR 自带的 remove_background 与 rembg 2.x API 不兼容而静默失败。
+            from rembg import remove as rembg_remove
+            rgba = rembg_remove(img)
+            img = resize_foreground(rgba, args.foreground_ratio).convert("RGB")
             print("INFO: background removed", flush=True)
         except Exception as e:
             print("WARN: remove_bg failed (" + str(e) + "), using original image", flush=True)

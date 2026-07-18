@@ -87,14 +87,15 @@
         </div>
         <div class="ai-to3d-row">
           <button id="img-to-3d-btn" class="btn btn-secondary">🧊 图片转3D</button>
-          <select id="img-to-3d-deploy" class="ai-select" title="部署方式">
-            <option value="local">本地 TripoSR（真重建）</option>
-            <option value="replicate">Replicate 云端</option>
+          <select id="img-to-3d-deploy" class="ai-select" title="图片转3D 提供商">
+            <option value="local">🖥️ 本地 TripoSR</option>
+            <option value="replicate" selected>☁️ Replicate 云端（Hunyuan3D-2）</option>
           </select>
           <select id="img-to-3d-model-local" class="ai-select" title="重建质量">
             <option value="256">标准 (256)</option>
             <option value="384">高精 (384)</option>
           </select>
+          <label class="ai-to3d-check"><input type="checkbox" id="img-to-3d-remove-bg" checked /> 去背景</label>
           <select id="img-to-3d-model" class="ai-select hidden" title="云端模型（高保真真重建）">
             <option value="tencent/hunyuan3d-2">Hunyuan3D-2（高保真）</option>
             <option value="camenduru/triposr">TripoSR（快速）</option>

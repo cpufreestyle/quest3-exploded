@@ -291,6 +291,14 @@
                         <div class="provider-desc">月之暗面 Moonshot</div>
                     </label>
                 </div>
+                
+                <div class="radio-item">
+                    <input type="radio" name="provider" id="provider-img3d" value="img3d">
+                    <label for="provider-img3d">
+                        <div class="provider-name">🧊 图片转3D</div>
+                        <div class="provider-desc">云端 API / 本地</div>
+                    </label>
+                </div>
             </div>
         </div>
         
@@ -456,21 +464,33 @@
             </div>
         </div>
         
-        <div class="card">
+        <!-- 图片转 3D：作为统一 provider 体系的一员（顶部 provider 单选可进入） -->
+        <div id="config-img3d" class="card config-section hidden">
             <div class="card-title">
                 <div class="icon">🧊</div>
-                图片转 3D
+                图片转 3D（提供商配置）
             </div>
-            <p class="help-text">把上传图片重建为带贴图的 GLB。支持<strong>本地部署</strong>（默认，TripoSR 真重建，离线推理）与 <strong>Replicate 云端</strong>两种模式。</p>
-            <div class="form-group">
-                <label>部署方式</label>
-                <select id="replicate-mode" class="config-select">
-                    <option value="local">本地部署（TripoSR 真重建）</option>
-                    <option value="replicate">Replicate 云端</option>
-                </select>
+            <p class="help-text">把上传图片重建为带贴图的 GLB。选择一个提供商：<strong>本地 TripoSR</strong>（离线真重建，无需 API）或 <strong>Replicate 云端 API</strong>。</p>
+            <div class="radio-group">
+                <div class="radio-item">
+                    <input type="radio" name="img3d-provider" id="img3d-provider-local" value="local" checked>
+                    <label for="img3d-provider-local">
+                        <div class="provider-name">🖥️ 本地 TripoSR</div>
+                        <div class="provider-desc">离线真重建，无需 API</div>
+                    </label>
+                </div>
+                <div class="radio-item">
+                    <input type="radio" name="img3d-provider" id="img3d-provider-replicate" value="replicate">
+                    <label for="img3d-provider-replicate">
+                        <div class="provider-name">☁️ Replicate 云端</div>
+                        <div class="provider-desc">图片转3D API</div>
+                    </label>
+                </div>
             </div>
-            <div id="replicate-local-fields" class="config-sub">
-                <p class="help-text">本地模式由 server.js 调用 <code>scripts/triposr_infer.py</code>（TripoSR 真重建）离线生成带体积的真·GLB，无需任何云端 API。首次需联网下载模型权重，请先运行 <code>bash scripts/setup_triposr.sh</code> 准备环境。</p>
+
+            <!-- 本地 TripoSR 配置 -->
+            <div id="config-img3d-local" class="img3d-section">
+                <p class="help-text" style="margin-top:16px">本地模式由 server.js 调用 <code>scripts/triposr_infer.py</code>（TripoSR 真重建）离线生成带体积的真·GLB。首次需联网下载模型权重，请先运行 <code>bash scripts/setup_triposr.sh</code>。</p>
                 <div class="form-group">
                     <label>重建质量 (marching cubes 分辨率)</label>
                     <input type="number" id="replicate-mc-resolution" value="256">
@@ -480,12 +500,14 @@
                     <label><input type="checkbox" id="replicate-bake-texture"> 烘焙纹理图集 (bake-texture)</label>
                 </div>
                 <div class="form-group">
-                    <label><input type="checkbox" id="replicate-remove-bg"> 移除背景 (rembg)</label>
+                    <label><input type="checkbox" id="replicate-remove-bg" checked> 移除背景 (rembg)</label>
                     <p class="help-text">勾选后用 rembg 自动抠图，效果更干净但依赖更重</p>
                 </div>
             </div>
-            <div id="replicate-cloud-fields" class="config-sub hidden">
-                <div class="form-group">
+
+            <!-- Replicate 云端配置 -->
+            <div id="config-img3d-replicate" class="img3d-section hidden">
+                <div class="form-group" style="margin-top:16px">
                     <label>API Token</label>
                     <input type="password" id="replicate-token" placeholder="r8_...">
                     <p class="help-text">从 <a href="https://replicate.com/account/api-tokens" target="_blank">Replicate API Tokens</a> 获取</p>
@@ -525,25 +547,32 @@
         // 因为页面可能从 8080 静态服务器打开，必须用绝对地址才能命中真正的 API 服务
         const API_BASE = "http://localhost:3001";
 
+        // 记录上一次选中的「文本 LLM」提供商，避免图片转3D 入口项覆盖它
+        let lastTextProvider = 'openai';
+
         // 切换配置面板
         document.querySelectorAll('input[name="provider"]').forEach(radio => {
             radio.addEventListener('change', (e) => {
+                const v = e.target.value;
+                if (v !== 'img3d') lastTextProvider = v;
                 document.querySelectorAll('.config-section').forEach(section => {
                     section.classList.add('hidden');
                 });
-                document.getElementById(`config-${e.target.value}`).classList.remove('hidden');
+                const card = document.getElementById(`config-${v}`);
+                if (card) card.classList.remove('hidden');
             });
         });
 
-        // 图片转3D 部署方式切换（本地/云端）
-        const repModeSel = document.getElementById('replicate-mode');
-        if (repModeSel) {
-            repModeSel.addEventListener('change', (e) => {
+        // 图片转3D 提供商切换（本地 TripoSR / Replicate 云端）—— 与上方文本 LLM 同一范式
+        document.querySelectorAll('input[name="img3d-provider"]').forEach(radio => {
+            radio.addEventListener('change', (e) => {
                 const local = e.target.value === 'local';
-                document.getElementById('replicate-local-fields').classList.toggle('hidden', !local);
-                document.getElementById('replicate-cloud-fields').classList.toggle('hidden', local);
+                const localCard = document.getElementById('config-img3d-local');
+                const repCard = document.getElementById('config-img3d-replicate');
+                if (localCard) localCard.classList.toggle('hidden', !local);
+                if (repCard) repCard.classList.toggle('hidden', local);
             });
-        }
+        });
         
         // Kimi 长上下文开关：勾选时自动切到 128k 模型，取消时回到 8k
         const kimiLongCtx = document.getElementById('kimi-long-context');
@@ -561,8 +590,10 @@
                 const config = await response.json();
                 
                 if (config.provider) {
-                    document.querySelector(`input[value="${config.provider}"]`).checked = true;
-                    document.getElementById(`config-${config.provider}`).classList.remove('hidden');
+                    const pv = config.provider;
+                    if (pv !== 'img3d') lastTextProvider = pv;
+                    document.querySelector(`input[value="${pv}"]`).checked = true;
+                    document.getElementById(`config-${pv}`).classList.remove('hidden');
                     
                     // 填充配置
                     if (config.openai) {
@@ -597,8 +628,9 @@
                     }
                     if (config.replicate) {
                         const r = config.replicate;
-                        const modeSel = document.getElementById('replicate-mode');
-                        if (modeSel) modeSel.value = r.mode || 'local';
+                        const mode = r.mode || 'local';
+                        const img3dRadio = document.querySelector(`input[name="img3d-provider"][value="${mode}"]`);
+                        if (img3dRadio) img3dRadio.checked = true;
                         document.getElementById('replicate-mc-resolution').value = r.mcResolution ?? 256;
                         document.getElementById('replicate-bake-texture').checked = Boolean(r.bakeTexture);
                         document.getElementById('replicate-remove-bg').checked = Boolean(r.removeBg);
@@ -606,8 +638,11 @@
                         document.getElementById('replicate-owner-name').value =
                             (r.owner || 'tencent') + '/' + (r.name || 'hunyuan3d-2');
                         document.getElementById('replicate-version').value = r.modelVersion || '';
-                        const ev = document.getElementById('replicate-mode');
-                        if (ev) ev.dispatchEvent(new Event('change'));
+                        const local = mode === 'local';
+                        const localCard = document.getElementById('config-img3d-local');
+                        const repCard = document.getElementById('config-img3d-replicate');
+                        if (localCard) localCard.classList.toggle('hidden', !local);
+                        if (repCard) repCard.classList.toggle('hidden', local);
                     }
                 }
             } catch (err) {
@@ -617,7 +652,9 @@
         
         // 保存配置
         async function saveConfig() {
-            const provider = document.querySelector('input[name="provider"]:checked').value;
+            const checkedProvider = document.querySelector('input[name="provider"]:checked').value;
+            // 图片转3D 入口项只用于打开其配置卡，不占用文本 LLM 的 provider 字段
+            const provider = checkedProvider === 'img3d' ? lastTextProvider : checkedProvider;
             
             const config = {
                 provider: provider,
@@ -652,7 +689,7 @@
                     longContext: document.getElementById('kimi-long-context').checked
                 },
                 replicate: {
-                    mode: document.getElementById('replicate-mode').value,
+                    mode: (document.querySelector('input[name="img3d-provider"]:checked') || { value: 'local' }).value,
                     mcResolution: Number(document.getElementById('replicate-mc-resolution').value) || 256,
                     bakeTexture: document.getElementById('replicate-bake-texture').checked,
                     removeBg: document.getElementById('replicate-remove-bg').checked,

@@ -704,7 +704,7 @@ async function runLocalImageTo3D(rep, body, imageBase64, res, startTime) {
 
   const mcResolution = body.mcResolution ?? rep.mcResolution ?? 256;
   const bakeTexture = body.bakeTexture ?? rep.bakeTexture ?? false;
-  const removeBg = body.removeBg ?? rep.removeBg ?? false;
+  const removeBg = body.removeBg ?? rep.removeBg ?? true; // 本地 TriPoSR 默认去背景：带背景会严重拉低重建质量
   const device = body.device ?? rep.device ?? "auto";
   const textureResolution = body.textureResolution ?? rep.textureResolution ?? 2048;
   const chunkSize = body.chunkSize ?? rep.chunkSize ?? 8192;
