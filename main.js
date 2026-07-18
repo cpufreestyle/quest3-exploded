@@ -3303,6 +3303,7 @@ function setupAIPaint() {
   const imgTo3DDeploy = document.getElementById("img-to-3d-deploy");
   const imgTo3DModelLocal = document.getElementById("img-to-3d-model-local");
   const imgTo3DRemoveBg = document.getElementById("img-to-3d-remove-bg");
+  const imgTo3DBake = document.getElementById("img-to-3d-bake");
   const imgTo3DModel = document.getElementById("img-to-3d-model");
   const imgTo3DModelCustom = document.getElementById("img-to-3d-model-custom");
 
@@ -3666,6 +3667,7 @@ function setupAIPaint() {
           payload.mcResolution = parseInt(q, 10) || 256; // 真重建：重建质量（marching cubes 分辨率）
           payload.tiles = 1; // 真重建为单网格，不再切块
           payload.removeBg = imgTo3DRemoveBg ? imgTo3DRemoveBg.checked : true; // 去背景显著提升重建质量
+          payload.bakeTexture = imgTo3DBake ? imgTo3DBake.checked : false; // 烘焙纹理图集（比顶点色清晰）
         } else {
           let m = imgTo3DModel ? imgTo3DModel.value : "";
           if (m === "__custom__" && imgTo3DModelCustom) m = imgTo3DModelCustom.value.trim();

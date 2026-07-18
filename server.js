@@ -859,17 +859,17 @@ function handleAIConfigGet(req, res) {
 function handleAIConfigPost(req, res) {
   readJSONBody(req)
     .then(config => {
-      // 保留现有的 API Key（如果新值为空）
-      if (config.openai && !config.openai.key) {
+      // 保留现有的 API Key（新值为空或脱敏占位 '***' 时视为未修改）
+      if (config.openai && (!config.openai.key || config.openai.key === '***')) {
         config.openai.key = AI_CONFIG.openai.key;
       }
-      if (config.anthropic && !config.anthropic.key) {
+      if (config.anthropic && (!config.anthropic.key || config.anthropic.key === '***')) {
         config.anthropic.key = AI_CONFIG.anthropic.key;
       }
-      if (config.stepfun && !config.stepfun.key) {
+      if (config.stepfun && (!config.stepfun.key || config.stepfun.key === '***')) {
         config.stepfun.key = AI_CONFIG.stepfun.key;
       }
-      if (config.nvidia && !config.nvidia.key) {
+      if (config.nvidia && (!config.nvidia.key || config.nvidia.key === '***')) {
         config.nvidia.key = AI_CONFIG.nvidia.key;
       }
       // 保留现有的 Kimi Token（脱敏值 '***' 或空都视为未修改）
