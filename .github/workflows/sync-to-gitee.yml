@@ -1,0 +1,22 @@
+name: Sync to Gitee
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    # 也支持手动触发
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Push to Gitee
+        run: |
+          git remote add gitee https://cpufreestyle:${{ secrets.GITEE_TOKEN }}@gitee.com/cpufreestyle/blender-auto-3d-explode.git
+          git push gitee --all --force
+          git push gitee --tags --force
