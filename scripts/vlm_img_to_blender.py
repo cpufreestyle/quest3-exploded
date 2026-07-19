@@ -4,7 +4,8 @@
 把"图片转 3D"做成可选 provider（视觉模型路线）。支持多模态视觉模型：
   - stepfun   : StepFun step-3.7-flash 等（OpenAI 兼容, https://api.stepfun.com/v1）
   - kimi      : Kimi / Moonshot（OpenAI 兼容, https://api.moonshot.cn/v1）
-  - anthropic : Claude 3 系列（Anthropic Messages API, https://api.anthropic.com）
+  - anthropic : Claude 系列（Anthropic Messages API, https://api.anthropic.com）
+  - openai    : OpenAI GPT 系列（OpenAI 兼容, https://api.openai.com/v1）
 
 管线:
   1. 读取图片 -> base64
@@ -37,6 +38,7 @@ VLM_PROVIDERS = {
     "stepfun": {"base_url": "https://api.stepfun.com/v1", "cfg_key": "stepfun", "kind": "openai"},
     "kimi": {"base_url": "https://api.moonshot.cn/v1", "cfg_key": "kimi", "kind": "openai"},
     "anthropic": {"base_url": "https://api.anthropic.com/v1", "cfg_key": "anthropic", "kind": "anthropic"},
+    "openai": {"base_url": "https://api.openai.com/v1", "cfg_key": "openai", "kind": "openai"},
 }
 
 MAX_RETRIES = 4

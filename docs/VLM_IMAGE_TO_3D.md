@@ -6,11 +6,12 @@
 
 ## 支持的视觉模型
 
-| 模型 | provider 标识 | 接口 |
+| 视觉模型提供商 | provider 标识 | 接口 |
 | --- | --- | --- |
-| StepFun step-3.7-flash | `stepfun` | OpenAI 兼容 `/chat/completions` |
-| Kimi kimi-k3 | `kimi` | OpenAI 兼容 `/chat/completions` |
-| Claude claude-3-sonnet | `anthropic` | Anthropic 原生 Messages API |
+| StepFun | `stepfun` | OpenAI 兼容 `/chat/completions` |
+| Kimi | `kimi` | OpenAI 兼容 `/chat/completions` |
+| Claude | `anthropic` | Anthropic 原生 Messages API |
+| OpenAI | `openai` | OpenAI 兼容 `/chat/completions` |
 
 在 `ai-config.html` 的「图片转 3D → 🤖 AI 视觉模型（VLM）」下拉中切换，保存后生效。
 
@@ -28,7 +29,7 @@
 
 1. 打开 `ai-config.html` → 切换到「图片转 3D」标签。
 2. 选择 **🤖 AI 视觉模型（VLM）** 单选。
-3. 在「视觉模型」下拉选择 StepFun / Kimi / Claude，点击「保存配置」。
+3. 在「视觉模型」下拉选择 StepFun / Kimi / Claude / OpenAI，点击「保存配置」。
 4. 在 Quest 3 前端使用「图片转 3D」功能，选择 VLM 模式上传图片即可。
 
    请求会经 `server.js` 的 `vlm` 分支 → `runVLMImageTo3D` → 调用 `scripts/vlm_img_to_blender.py`。
@@ -43,7 +44,7 @@ python3 scripts/vlm_img_to_blender.py \
 ```
 
 - 不传 `--image` 时使用默认示例图（`external/TripoSR/examples/hamburger.png`）。
-- 不传 `--model` 时回退到 `ai-config.json` 中该 provider 的 `model`，再回退到 `step-3.7-flash`。
+- 不传 `--model` 时回退到 `ai-config.json` 中该 provider 的 `model`，再回退到脚本内置的该 provider 默认模型。
 - 成功后导出 GLB 到 `/tmp/vlm_img_to_3d.glb`，最终生成的 Blender 代码存档到 `scripts/_vlm_generated_blender.py`。
 
 ## 管线原理
@@ -58,10 +59,11 @@ python3 scripts/vlm_img_to_blender.py \
 
 ```json
 {
-  "vlm": { "provider": "stepfun", "model": "step-3.7-flash" },
-  "stepfun": { "key": "sk-...", "model": "step-3.7-flash" },
-  "kimi":    { "key": "sk-...", "model": "kimi-k3" },
-  "anthropic": { "key": "sk-ant-...", "model": "claude-3-sonnet-20240229" }
+  "vlm": { "provider": "stepfun", "model": "<视觉模型名>" },
+  "stepfun": { "key": "sk-...", "model": "<视觉模型名>" },
+  "kimi":    { "key": "sk-...", "model": "<视觉模型名>" },
+  "anthropic": { "key": "sk-ant-...", "model": "<视觉模型名>" },
+  "openai":  { "key": "sk-...", "model": "<视觉模型名>" }
 }
 ```
 
@@ -70,6 +72,7 @@ python3 scripts/vlm_img_to_blender.py \
 - StepFun：`https://api.stepfun.com/v1`
 - Kimi：`https://api.moonshot.cn/v1`
 - Anthropic：`https://api.anthropic.com/v1`
+- OpenAI：`https://api.openai.com/v1`
 
 ## 已知局限
 
