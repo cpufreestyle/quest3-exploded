@@ -222,6 +222,16 @@
             max-height: 200px;
             overflow-y: auto;
         }
+
+        .test-inline {
+            display: inline-block;
+            margin-left: 10px;
+            font-size: 13px;
+            vertical-align: middle;
+        }
+        .test-inline.success { color: #4ade80; }
+        .test-inline.error { color: #f87171; }
+        .test-inline.warn { color: #fbbf24; }
     </style>
 </head>
 <body>
@@ -470,7 +480,7 @@
                 <div class="icon">🧊</div>
                 图片转 3D（提供商配置）
             </div>
-            <p class="help-text">把上传图片重建为带贴图的 GLB。选择一个提供商：<strong>本地 TripoSR</strong>（离线真重建，无需 API）或 <strong>Replicate 云端 API</strong>。</p>
+            <p class="help-text">把上传图片重建为带贴图的 GLB。选择一个提供商：<strong>本地 TripoSR</strong>（离线真重建，无需 API）、<strong>Replicate 云端</strong>，或 <strong>Meshy / Tripo / Hyper3D</strong> 等 MCP 联动云厂商（需在下方填入对应 API Key）。</p>
             <div class="radio-group">
                 <div class="radio-item">
                     <input type="radio" name="img3d-provider" id="img3d-provider-local" value="local" checked>
@@ -484,6 +494,27 @@
                     <label for="img3d-provider-replicate">
                         <div class="provider-name">☁️ Replicate 云端</div>
                         <div class="provider-desc">图片转3D API</div>
+                    </label>
+                </div>
+                <div class="radio-item">
+                    <input type="radio" name="img3d-provider" id="img3d-provider-meshy" value="meshy">
+                    <label for="img3d-provider-meshy">
+                        <div class="provider-name">🌐 Meshy AI</div>
+                        <div class="provider-desc">图生 3D（base64 直传）</div>
+                    </label>
+                </div>
+                <div class="radio-item">
+                    <input type="radio" name="img3d-provider" id="img3d-provider-tripo" value="tripo">
+                    <label for="img3d-provider-tripo">
+                        <div class="provider-name">🌐 Tripo（Triple 3D）</div>
+                        <div class="provider-desc">图生模型（先上传换 token）</div>
+                    </label>
+                </div>
+                <div class="radio-item">
+                    <input type="radio" name="img3d-provider" id="img3d-provider-hyper3d" value="hyper3d">
+                    <label for="img3d-provider-hyper3d">
+                        <div class="provider-name">🌐 Hyper3D（Rodin）</div>
+                        <div class="provider-desc">图生 3D（multipart 直传）</div>
                     </label>
                 </div>
             </div>
@@ -525,6 +556,44 @@
             </div>
         </div>
         
+        <!-- Meshy AI 配置 -->
+        <div id="config-img3d-meshy" class="img3d-section hidden">
+            <div class="form-group" style="margin-top:16px">
+                <label>Meshy API Key</label>
+                <input type="password" id="meshy-api-key" placeholder="msy_...">
+                <p class="help-text">从 <a href="https://docs.meshy.ai/" target="_blank">Meshy 文档</a> 获取。配置后可在「图片转3D」下拉选择 <strong>Meshy AI</strong>。</p>
+            </div>
+            <button class="btn btn-secondary btn-sm" onclick="testProvider('meshy')">测试 Key</button>
+            <span id="meshy-test-result" class="test-inline"></span>
+        </div>
+
+        <!-- Tripo（Triple 3D）配置 -->
+        <div id="config-img3d-tripo" class="img3d-section hidden">
+            <div class="form-group" style="margin-top:16px">
+                <label>Tripo API Key</label>
+                <input type="password" id="tripo-api-key" placeholder="tsk_...">
+                <p class="help-text">从 <a href="https://platform.tripo3d.ai/" target="_blank">Tripo 平台</a> 获取。</p>
+            </div>
+            <div class="form-group">
+                <label>模型版本</label>
+                <input type="text" id="tripo-model" value="v3.1-20260211" placeholder="v3.1-20260211">
+                <p class="help-text">如 v3.1-20260211 / v3.0-20250812 等</p>
+            </div>
+            <button class="btn btn-secondary btn-sm" onclick="testProvider('tripo')">测试 Key</button>
+            <span id="tripo-test-result" class="test-inline"></span>
+        </div>
+
+        <!-- Hyper3D（Rodin）配置 -->
+        <div id="config-img3d-hyper3d" class="img3d-section hidden">
+            <div class="form-group" style="margin-top:16px">
+                <label>Hyper3D（Rodin）API Key</label>
+                <input type="password" id="hyper3d-api-key" placeholder="sk_...">
+                <p class="help-text">从 <a href="https://developer.hyper3d.ai/" target="_blank">Hyper3D 开发者门户</a> 获取 API Key（查看「Get started with Rodin」中的鉴权说明）。</p>
+            </div>
+            <button class="btn btn-secondary btn-sm" onclick="testProvider('hyper3d')">测试 Key</button>
+            <span id="hyper3d-test-result" class="test-inline"></span>
+        </div>
+
         <div class="card">
             <div class="card-title">
                 <div class="icon">🧪</div>
@@ -563,14 +632,14 @@
             });
         });
 
-        // 图片转3D 提供商切换（本地 TripoSR / Replicate 云端）—— 与上方文本 LLM 同一范式
+        // 图片转3D 提供商切换（本地 / Replicate / Meshy / Tripo / Hyper3D）
         document.querySelectorAll('input[name="img3d-provider"]').forEach(radio => {
             radio.addEventListener('change', (e) => {
-                const local = e.target.value === 'local';
-                const localCard = document.getElementById('config-img3d-local');
-                const repCard = document.getElementById('config-img3d-replicate');
-                if (localCard) localCard.classList.toggle('hidden', !local);
-                if (repCard) repCard.classList.toggle('hidden', local);
+                const value = e.target.value;
+                ['local', 'replicate', 'meshy', 'tripo', 'hyper3d'].forEach(v => {
+                    const card = document.getElementById(`config-img3d-${v}`);
+                    if (card) card.classList.toggle('hidden', v !== value);
+                });
             });
         });
         
@@ -638,11 +707,20 @@
                         document.getElementById('replicate-owner-name').value =
                             (r.owner || 'tencent') + '/' + (r.name || 'hunyuan3d-2');
                         document.getElementById('replicate-version').value = r.modelVersion || '';
-                        const local = mode === 'local';
                         const localCard = document.getElementById('config-img3d-local');
                         const repCard = document.getElementById('config-img3d-replicate');
-                        if (localCard) localCard.classList.toggle('hidden', !local);
-                        if (repCard) repCard.classList.toggle('hidden', local);
+                        if (localCard) localCard.classList.toggle('hidden', mode !== 'local');
+                        if (repCard) repCard.classList.toggle('hidden', mode !== 'replicate');
+                        const meshyCard = document.getElementById('config-img3d-meshy');
+                        const tripoCard = document.getElementById('config-img3d-tripo');
+                        const hyperCard = document.getElementById('config-img3d-hyper3d');
+                        if (meshyCard) meshyCard.classList.toggle('hidden', mode !== 'meshy');
+                        if (tripoCard) tripoCard.classList.toggle('hidden', mode !== 'tripo');
+                        if (hyperCard) hyperCard.classList.toggle('hidden', mode !== 'hyper3d');
+                        document.getElementById('meshy-api-key').value = (config.providers?.meshy?.apiKey) ? '***' : '';
+                        document.getElementById('tripo-api-key').value = (config.providers?.tripo?.apiKey) ? '***' : '';
+                        document.getElementById('tripo-model').value = config.providers?.tripo?.model || 'v3.1-20260211';
+                        document.getElementById('hyper3d-api-key').value = (config.providers?.hyper3d?.apiKey) ? '***' : '';
                     }
                 }
             } catch (err) {
@@ -698,6 +776,20 @@
                     owner: (document.getElementById('replicate-owner-name').value.split('/')[0] || 'tencent').trim(),
                     name: (document.getElementById('replicate-owner-name').value.split('/')[1] || 'hunyuan3d-2').trim(),
                     modelVersion: document.getElementById('replicate-version').value
+                },
+                providers: {
+                    meshy: {
+                        apiKey: document.getElementById('meshy-api-key').value,
+                        model: document.getElementById('meshy-model')?.value || 'meshy-6'
+                    },
+                    tripo: {
+                        apiKey: document.getElementById('tripo-api-key').value,
+                        model: document.getElementById('tripo-model').value || 'v3.1-20260211'
+                    },
+                    hyper3d: {
+                        apiKey: document.getElementById('hyper3d-api-key').value,
+                        mode: 'MAIN_SITE'
+                    }
                 }
             };
             
@@ -743,6 +835,43 @@
                 resultDiv.textContent = JSON.stringify(result, null, 2);
             } catch (err) {
                 resultDiv.textContent = '测试失败: ' + err.message;
+            }
+        }
+
+        // 测试某家 3D 生成厂商的 API Key 是否有效（只读探测，不生成）
+        const PROVIDER_LABELS = { meshy: 'Meshy', tripo: 'Tripo', hyper3d: 'Hyper3D' };
+        async function testProvider(provider) {
+            const resultSpan = document.getElementById(`${provider}-test-result`);
+            const keyInput = document.getElementById(`${provider}-api-key`);
+            const apiKey = (keyInput && keyInput.value || '').trim();
+            if (!apiKey) {
+                resultSpan.textContent = '⚠️ 请先填写 API Key';
+                resultSpan.className = 'test-inline error';
+                return;
+            }
+            resultSpan.textContent = '测试中...';
+            resultSpan.className = 'test-inline';
+            try {
+                const response = await fetch(`${API_BASE}/api/test-provider`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ provider, apiKey }),
+                });
+                const result = await response.json();
+                const label = PROVIDER_LABELS[provider] || provider;
+                if (result.status === 'valid') {
+                    resultSpan.textContent = `✅ ${label} Key 有效`;
+                    resultSpan.className = 'test-inline success';
+                } else if (result.status === 'invalid') {
+                    resultSpan.textContent = `❌ ${label} ${result.message || 'Key 无效'}`;
+                    resultSpan.className = 'test-inline error';
+                } else {
+                    resultSpan.textContent = `⚠️ ${label} ${result.message || '无法确定'}`;
+                    resultSpan.className = 'test-inline warn';
+                }
+            } catch (err) {
+                resultSpan.textContent = '测试失败: ' + err.message;
+                resultSpan.className = 'test-inline error';
             }
         }
         

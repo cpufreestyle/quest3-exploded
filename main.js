@@ -3584,12 +3584,13 @@ function setupAIPaint() {
     imgTo3DBtn.addEventListener("click", () => imageTo3D());
   }
 
-  // 部署方式：本地显示本地模型下拉，云端显示云端模型下拉
+  // 部署方式：本地显示本地模型下拉，Replicate 显示云端模型下拉，其余云厂商走配置里的 Key
   function refreshTo3DControls() {
     const deploy = imgTo3DDeploy ? imgTo3DDeploy.value : "local";
     const isLocal = deploy === "local";
+    const isReplicate = deploy === "replicate";
     if (imgTo3DModelLocal) imgTo3DModelLocal.classList.toggle("hidden", !isLocal);
-    if (imgTo3DModel) imgTo3DModel.classList.toggle("hidden", isLocal);
+    if (imgTo3DModel) imgTo3DModel.classList.toggle("hidden", !isReplicate);
     if (imgTo3DModelCustom) imgTo3DModelCustom.classList.add("hidden");
   }
   if (imgTo3DDeploy) {
@@ -3619,11 +3620,18 @@ function setupAIPaint() {
       imgTo3DBtn.disabled = true;
       imgTo3DBtn.textContent = "⏳ 重建中...";
     }
+    const providerLabel = {
+      local: "本地 TripoSR",
+      replicate: "Replicate 云端",
+      meshy: "Meshy AI 云端",
+      tripo: "Tripo 云端",
+      hyper3d: "Hyper3D(Rodin) 云端",
+    }[deploy] || "云端";
     showAIStatus(
       `<span class="ai-paint-spinner"></span>` +
         (isLocal
           ? "正在用本地 TripoSR 真重建 3D（单图重建，首次需下载模型权重，约 1-3 分钟）..."
-          : "正在用 Replicate 重建 3D 模型...（约 1-3 分钟，请耐心等待）"),
+          : `正在用 ${providerLabel} 重建 3D 模型...（约 1-3 分钟，请耐心等待）`),
       "info",
     );
 
@@ -3671,7 +3679,7 @@ function setupAIPaint() {
           payload.tiles = 1; // 真重建为单网格，不再切块
           payload.removeBg = imgTo3DRemoveBg ? imgTo3DRemoveBg.checked : true; // 去背景显著提升重建质量
           payload.bakeTexture = imgTo3DBake ? imgTo3DBake.checked : false; // 烘焙纹理图集（比顶点色清晰）
-        } else {
+        } else if (deploy === "replicate") {
           let m = imgTo3DModel ? imgTo3DModel.value : "";
           if (m === "__custom__" && imgTo3DModelCustom) m = imgTo3DModelCustom.value.trim();
           if (m) payload.model = m;
