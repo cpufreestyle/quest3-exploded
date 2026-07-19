@@ -232,12 +232,39 @@
         .test-inline.success { color: #4ade80; }
         .test-inline.error { color: #f87171; }
         .test-inline.warn { color: #fbbf24; }
+
+        /* 配置提醒横幅 */
+        .config-reminder {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 14px 18px;
+            margin-bottom: 24px;
+            border-radius: 12px;
+            border: 1px solid rgba(251,191,36,0.4);
+            background: rgba(251,191,36,0.1);
+            color: #fde68a;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        .config-reminder .reminder-icon { font-size: 20px; line-height: 1.4; }
+        .config-reminder strong { color: #fbbf24; }
+        .config-reminder.hidden { display: none; }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>🎨 AI 模型配置</h1>
         <p class="subtitle">配置 AI 模型以生成 3D 模型描述和 Blender Python 代码</p>
+
+        <div id="config-reminder" class="config-reminder hidden">
+            <div class="reminder-icon">⚠️</div>
+            <div>
+                <strong>使用前请先完成配置：</strong>选择顶部的 AI 提供商（如 OpenAI / Kimi / NVIDIA），
+                填入对应的 <strong>API Key</strong> 并点击「保存配置」。如需使用「🧊 图片转3D」云端生成，
+                还需在下方选择部署方式并填写相应的 Token。未配置时，AI 绘画 / 图片转3D 功能将无法使用。
+            </div>
+        </div>
         
         <div class="card">
             <div class="card-title">
@@ -723,9 +750,22 @@
                         document.getElementById('hyper3d-api-key').value = (config.providers?.hyper3d?.apiKey) ? '***' : '';
                     }
                 }
+                updateConfigReminder(config);
             } catch (err) {
                 console.log('No saved config');
             }
+        }
+
+        // 根据已加载配置判断是否缺失关键项，控制顶部提醒横幅的显示
+        function updateConfigReminder(config) {
+            const banner = document.getElementById('config-reminder');
+            if (!banner) return;
+            const provider = config && config.provider;
+            const hasProvider = !!provider && provider !== 'img3d';
+            const key = provider && config[provider] && config[provider].key;
+            const hasKey = !!(key && key !== '***');
+            const needRemind = !hasProvider || !hasKey;
+            banner.classList.toggle('hidden', !needRemind);
         }
         
         // 保存配置

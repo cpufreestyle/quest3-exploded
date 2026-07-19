@@ -3877,7 +3877,52 @@ function setupAIPaint() {
   });
 
   console.log("🎨 AI 绘画功能已启用");
+
+  // ===== 顶部「配置 AI」按钮：打开统一 AI 配置弹窗（复用页面已有的配置引导弹窗）=====
+  const openConfigBtn = document.getElementById("open-config-btn");
+  if (openConfigBtn) {
+    openConfigBtn.addEventListener("click", () => {
+      const modal = document.getElementById("first-config-modal");
+      const iframe = document.getElementById("fcm-iframe");
+      if (modal && iframe) {
+        iframe.src = iframe.src || "ai-config.html";
+        modal.classList.remove("hidden");
+      }
+    });
+  }
+
+  // 进入页面时检查 AI 配置是否就绪，缺关键项则在首页按钮上做提醒
+  fetchConfigAndHighlight(openConfigBtn);
 }
+
+// 读取 ai-config.json：缺失 provider 或 key 时高亮「配置 AI」按钮
+function fetchConfigAndHighlight(btn) {
+  if (!btn) return;
+  fetch("ai-config.json")
+    .then(r => (r.ok ? r.json() : null))
+    .then(cfg => {
+      if (!cfg) {
+        btn.classList.add("need-config");
+        return;
+      }
+      const provider = cfg.provider;
+      const hasProvider = !!provider && provider !== "img3d";
+      const key = provider && cfg[provider] && cfg[provider].key;
+      const hasKey = !!(key && key !== "***");
+      if (!hasProvider || !hasKey) {
+        btn.classList.add("need-config");
+      }
+    })
+    .catch(() => {/* 配置不存在时不强制提醒 */});
+}
+
+// 配置弹窗内保存成功后，移除首页按钮的「待配置」提醒
+window.addEventListener("message", (e) => {
+  if (e.data && e.data.type === "config-saved") {
+    const btn = document.getElementById("open-config-btn");
+    if (btn) btn.classList.remove("need-config");
+  }
+});
 
 // 等待 DOM 完全加载后初始化 AI 绘画
 if (document.readyState === "loading") {
