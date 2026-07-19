@@ -4,7 +4,6 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
-    # 也支持手动触发
 
 jobs:
   sync:
@@ -14,6 +13,19 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Ensure Gitee repo exists
+        run: |
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+            "https://gitee.com/api/v5/repos/cpufreestyle/blender-auto-3d-explode?access_token=${{ secrets.GITEE_TOKEN }}")
+          if [ "$HTTP_CODE" = "404" ]; then
+            echo "Creating Gitee repository..."
+            curl -s -X POST "https://gitee.com/api/v5/user/repos?access_token=${{ secrets.GITEE_TOKEN }}" \
+              -H "Content-Type: application/json" \
+              -d '{"name":"blender-auto-3d-explode","private":"false","description":"Blender 3D Explode - Mirror from GitHub"}'
+          else
+            echo "Gitee repository already exists (HTTP $HTTP_CODE)"
+          fi
 
       - name: Push to Gitee
         run: |
