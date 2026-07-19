@@ -108,15 +108,29 @@ def main():
     if args.bake_texture:
         try:
             from tsr.bake_texture import bake_texture
-            import xatlas
+            import numpy as np
+            import trimesh
             mesh = meshes[0]
-            vmapping, indices, uvs, colors = bake_texture(
+            # 注意：bake_texture 返回 dict（非 tuple），必须用 key 取值
+            result = bake_texture(
                 mesh, model, scene_codes[0], texture_resolution=args.texture_resolution
             )
-            xatlas.export(args.output, mesh.vertices, indices, uvs, mesh.vertex_normals)
-            tex_path = os.path.splitext(args.output)[0] + "_texture.png"
-            colors.save(tex_path)
-            print("INFO: baked texture -> " + args.output + " + " + tex_path, flush=True)
+            vmapping = np.asarray(result["vmapping"])
+            indices = np.asarray(result["indices"]).reshape(-1, 3)
+            uvs = np.asarray(result["uvs"]).reshape(-1, 2)
+            colors = np.asarray(result["colors"])  # float (0-1) RGBA 纹理图集
+            verts = np.asarray(mesh.vertices)[vmapping]
+            norms = np.asarray(mesh.vertex_normals)[vmapping]
+            tm = trimesh.Trimesh(vertices=verts, faces=indices, normals=norms, process=False)
+            # 转 uint8 纹理图集并内嵌进 GLB（前端才能看到纹理）
+            tex_arr = (np.clip(colors, 0.0, 1.0) * 255.0).astype(np.uint8)
+            tm.visual = trimesh.visual.TextureVisuals(
+                uv=uvs,
+                image=tex_arr,
+                material=trimesh.visual.material.PBRMaterial(baseColorTexture=tex_arr),
+            )
+            tm.export(args.output)
+            print("INFO: baked texture embedded -> " + args.output, flush=True)
         except Exception as e:
             print("WARN: bake_texture failed (" + str(e) + "), falling back to vertex colors", flush=True)
             meshes[0].export(args.output)
