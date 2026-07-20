@@ -160,7 +160,7 @@ npm run format  # 格式化代码
 
 将根目录 50+ 个杂乱文件整理为规范结构：
 
-```
+```text
 quest3-exploded/
 ├── index.html              # 入口页面
 ├── main.js                 # 主逻辑（精简后）
@@ -197,7 +197,7 @@ quest3-exploded/
 
 ## 📊 统计
 
-```
+```text
 新功能: 5 项（二进制传输、模块化、共享配置、E2E 测试、代码规范）
 Bug 修复: 2 个（变量作用域、几何破损）
 安全加固: 2 项（Multipart 校验、临时文件清理）
@@ -235,8 +235,8 @@ npm test
 
 ## 🔗 相关链接
 
-- **GitHub 仓库**：https://github.com/cpufreestyle/blender-auto-3d-explode
-- **问题反馈**：https://github.com/cpufreestyle/blender-auto-3d-explode/issues
+- **GitHub 仓库**：<https://github.com/cpufreestyle/blender-auto-3d-explode>
+- **问题反馈**：<https://github.com/cpufreestyle/blender-auto-3d-explode/issues>
 - **完整变更日志**：[CHANGELOG.md](CHANGELOG.md)
 
 ---

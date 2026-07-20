@@ -23,7 +23,7 @@
 
 ### 下载
 
-1. 访问 https://www.blender.org/download/
+1. 访问 <https://www.blender.org/download/>
 2. 下载最新版本（Windows/Mac/Linux）
 3. 安装（解压即可使用，无需安装）
 
@@ -44,7 +44,7 @@
    ![File → Import → glTF](https://docs.blender.org/manual/en/latest/_images/io_gltf_import.png)
 
 2. 选择文件：
-   ```
+```text
    /Users/a1-6/quest3-exploded/models/Quest3.glb
    ```
 
@@ -96,7 +96,7 @@
 
 Quest 3 的**主要部件**（从上到下）：
 
-```
+```text
 1. 头带（顶部和后部）
    ├─ 柔性头带主体
    └─ 头带连接臂（左右）
@@ -137,7 +137,7 @@ Quest 3 的**主要部件**（从上到下）：
 ### 4.1 进入编辑模式
 
 1. **选中整个模型**
-2. 按 **`Tab`** 键进入 **Edit Mode**
+2. 按 **`Tab`**键进入**Edit Mode**
 
 **Edit Mode vs Object Mode**：
 - **Object Mode**（默认）：操作整个对象
@@ -179,9 +179,9 @@ Quest 3 的**主要部件**（从上到下）：
 
 1. 在 **Object Mode** 选中包含头带臂的部分
 2. 按 `Tab` 进入 **Edit Mode**
-3. 使用 **框选（B）** 或 **套索选（Ctrl + 左键拖动）**
-4. 按 **`P`** → **"Selection"** 分离
-5. 重命名为 **"左头带臂"** / **"右头带臂"**
+3. 使用 **框选（B）**或**套索选（Ctrl + 左键拖动）**
+4. 按 **`P`**→**"Selection"** 分离
+5. 重命名为 **"左头带臂"**/**"右头带臂"**
 
 ### 4.4 拆分前面板（Front Cover）
 
@@ -244,7 +244,7 @@ Quest 3 的**主要部件**（从上到下）：
 
 ## 5. 标记部件名称
 
-### 为什么需要标记？
+### 为什么需要标记
 
 Three.js 通过 `name` 属性识别部件，用于：
 - 爆炸动画
@@ -266,7 +266,7 @@ Three.js 通过 `name` 属性识别部件，用于：
 
 ### 必须标记的部件名称
 
-```
+```text
 ✅ 必须有的名称（用于爆炸图）：
 
 1. 前面板
@@ -332,13 +332,13 @@ Three.js 通过 `name` 属性识别部件，用于：
    **Animation（动画）**：
    - ❌ 不需要动画，保持默认
 
-   ** Draco Compression**：
+   **Draco Compression**：
    - 可选：启用压缩（减小文件大小）
 
 4. **点击 "Export glTF 2.0"**
 
 5. **保存文件**：
-   ```
+```text
    /Users/a1-6/quest3-exploded/models/Quest3-real.glb
    ```
 
@@ -500,7 +500,7 @@ function updateExplodeParts(parts) {
 - 或修改 `stepGroups` 以匹配你的名称
 
 **问题 3：爆炸方向错误**
-- 调整爆炸距离乘数（`* 2` → `* 3`）
+- 调整爆炸距离乘数（`*2` → `* 3`）
 - 手动设置爆炸位置
 
 ---
@@ -554,11 +554,11 @@ function updateExplodeParts(parts) {
 | 导出 GLB | 5 分钟 |
 | 集成到项目 | 30 分钟 |
 | 测试调整 | 20 分钟 |
-| **总计** | **2.5-3 小时** |
+| **总计**|**2.5-3 小时** |
 
 ---
 
-## 🆘 遇到问题？
+## 🆘 遇到问题
 
 ### 常见问题
 

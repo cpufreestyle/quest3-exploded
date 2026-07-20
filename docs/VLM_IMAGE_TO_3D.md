@@ -2,7 +2,8 @@
 
 用**视觉大模型（VLM）**"看"一张图片，自动生成 Blender Python 代码，在 Blender 中程序化重建出 3D 模型并导出 GLB。
 
-> ⚠️ 这是**程序化几何近似重建**（用基础几何体拼出物体的主要形状/比例/配色），并非高保真的带纹理网格重建。追求照片级网格请使用本地 TripoSR / Replicate / Meshy / Tripo / Hyper3D 等真重建路线。
+> ⚠️ 这是**程序化几何近似重建**（用基础几何体拼出物体的主要形状/比例/配色），并非高保真的带纹理网格重建。
+> 追求照片级网格请使用本地 TripoSR / Replicate / Meshy / Tripo / Hyper3D 等真重建路线。
 
 ## 支持的视觉模型
 
@@ -50,7 +51,8 @@ python3 scripts/vlm_img_to_blender.py \
 ## 管线原理
 
 1. 读取图片 → base64。
-2. 调用视觉模型（多模态 Chat Completions / Messages），提示其输出**完整、可直接执行的 Blender Python 代码**（仅用 `bpy.ops.mesh.primitive_*` 基础几何体，所有新建对象名以 `GLM_VLM_` 开头）。
+2. 调用视觉模型（多模态 Chat Completions / Messages），提示其输出**完整、可直接执行的 Blender Python 代码**
+   （仅用 `bpy.ops.mesh.primitive_*` 基础几何体，所有新建对象名以 `GLM_VLM_` 开头）。
 3. 通过 Blender MCP 插件 TCP（`localhost:9876`）在 Blender 内**沙箱执行**该代码。
 4. 若执行报错，把错误信息**回灌视觉模型**让其修复并重生成（最多 `MAX_RETRIES=4` 次迭代，自愈常见 Blender API 不兼容问题）。
 5. 成功后把场景中以 `GLM_VLM_` 开头的对象导出为 GLB。

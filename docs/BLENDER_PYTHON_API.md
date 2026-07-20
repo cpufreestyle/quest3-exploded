@@ -89,23 +89,23 @@ blender --background --python blender_api_server.py -- --port 8000
 
 ```bash
 # 查看 API 文档
-curl http://localhost:8000/
+curl <http://localhost:8000/>
 
 # 获取所有物体
-curl http://localhost:8000/api/objects
+curl <http://localhost:8000/api/objects>
 
 # 创建立方体
-curl -X POST http://localhost:8000/api/create \
+curl -X POST <http://localhost:8000/api/create> \
   -H "Content-Type: application/json" \
   -d '{"type":"cube","name":"MyCube","location":[0,0,0],"size":2.0}'
 
 # 应用材质
-curl -X POST http://localhost:8000/api/material \
+curl -X POST <http://localhost:8000/api/material> \
   -H "Content-Type: application/json" \
   -d '{"name":"MyCube","color":[0.8,0.2,0.2,1.0],"metallic":0.3}'
 
 # 清空场景
-curl -X POST http://localhost:8000/api/clear
+curl -X POST <http://localhost:8000/api/clear>
 ```
 
 ---
@@ -420,17 +420,17 @@ blender --background --python blender_control.py -- --config config.json
 blender --background --python blender_api_server.py -- --port 8000
 
 # 2. 创建物体
-curl -X POST http://localhost:8000/api/create \
+curl -X POST <http://localhost:8000/api/create> \
   -H "Content-Type: application/json" \
   -d '{"type":"sphere","name":"Ball","location":[0,0,2],"radius":1.5}'
 
 # 3. 设置颜色
-curl -X POST http://localhost:8000/api/material \
+curl -X POST <http://localhost:8000/api/material> \
   -H "Content-Type: application/json" \
   -d '{"name":"Ball","color":[0,1,0,1]}'
 
 # 4. 添加动画
-curl -X POST http://localhost:8000/api/animation \
+curl -X POST <http://localhost:8000/api/animation> \
   -H "Content-Type: application/json" \
   -d '{"object":"Ball","property":"location","start_value":[0,0,2],"end_value":[5,0,2],"start_frame":1,"end_frame":100}'
 ```
@@ -451,11 +451,11 @@ done
 
 ## 常见问题
 
-### Q1: 如何安装 bpy？
+### Q1: 如何安装 bpy
 
 **A**: `bpy` 是 Blender 内置的 Python 模块，无需单独安装。只能在 Blender 的 Python 环境中使用。
 
-### Q2: 可以在系统 Python 中使用吗？
+### Q2: 可以在系统 Python 中使用吗
 
 **A**: 不可以。bpy 是 Blender 特有的模块。必须通过 Blender 运行脚本：
 
@@ -463,7 +463,7 @@ done
 blender --python your_script.py
 ```
 
-### Q3: 如何调试脚本？
+### Q3: 如何调试脚本
 
 **A**: 在 Blender 的 Scripting 工作区：
 1. 打开 **Console** 面板
@@ -472,7 +472,7 @@ blender --python your_script.py
 
 或使用 `print()` 语句，输出会显示在系统控制台。
 
-### Q4: 如何批量处理多个文件？
+### Q4: 如何批量处理多个文件
 
 **A**: 使用 `--background` 模式：
 
@@ -482,7 +482,7 @@ for file in *.blend; do
 done
 ```
 
-### Q5: HTTP API 服务器如何远程访问？
+### Q5: HTTP API 服务器如何远程访问
 
 **A**: 修改绑定地址：
 
@@ -493,7 +493,7 @@ self.server = HTTPServer(('0.0.0.0', self.port), BlenderAPIHandler)
 
 然后在防火墙中开放端口，就可以通过网络访问了。
 
-### Q6: 如何导出场景为 glTF/GLB？
+### Q6: 如何导出场景为 glTF/GLB
 
 **A**: 在脚本中添加：
 
@@ -505,7 +505,7 @@ bpy.ops.export_scene.gltf(
 )
 ```
 
-### Q7: 如何修改已有物体的属性？
+### Q7: 如何修改已有物体的属性
 
 **A**: 通过名称获取物体：
 
@@ -522,19 +522,19 @@ if obj:
 
 ### 官方文档
 
-- **Blender Python API**: https://docs.blender.org/api/current/
-- **bpy 模块参考**: https://docs.blender.org/api/current/bpy.html
-- **API 速查表**: https://docs.blender.org/api/current/info_quickstart.html
+- **Blender Python API**: <https://docs.blender.org/api/current/>
+- **bpy 模块参考**: <https://docs.blender.org/api/current/bpy.html>
+- **API 速查表**: <https://docs.blender.org/api/current/info_quickstart.html>
 
 ### 示例代码
 
-- **Blender 官方示例**: https://docs.blender.org/api/current/info_tutorials.html
-- **模板脚本**: https://docs.blender.org/api/current/info_tips_and_tricks.html
+- **Blender 官方示例**: <https://docs.blender.org/api/current/info_tutorials.html>
+- **模板脚本**: <https://docs.blender.org/api/current/info_tips_and_tricks.html>
 
 ### 社区资源
 
-- **Blender Artists**: https://blenderartists.org/
-- **Python Scripting**: https://blender.stackexchange.com/
+- **Blender Artists**: <https://blenderartists.org/>
+- **Python Scripting**: <https://blender.stackexchange.com/>
 
 ---
 

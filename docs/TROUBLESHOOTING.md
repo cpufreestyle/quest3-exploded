@@ -10,12 +10,12 @@
 #### ✅ 方案 1: 强制刷新（最快）
 
 **Mac**:
-```
+```text
 Cmd + Shift + R
 ```
 
 **Windows/Linux**:
-```
+```text
 Ctrl + Shift + R
 ```
 
@@ -38,7 +38,7 @@ Ctrl + Shift + R
 - Firefox: `Ctrl + Shift + P`
 
 然后在无痕窗口中访问：
-```
+```text
 http://127.0.0.1:8080/
 ```
 
@@ -67,7 +67,7 @@ http://127.0.0.1:8080/
 #### ✅ 方案 4: 使用清除缓存页面
 
 访问：
-```
+```text
 http://127.0.0.1:8080/clear-cache.html
 ```
 
@@ -78,7 +78,7 @@ http://127.0.0.1:8080/clear-cache.html
 ### 验证修复
 
 清除缓存后，访问：
-```
+```text
 http://127.0.0.1:8080/debug-loader.html
 ```
 
@@ -95,7 +95,7 @@ http://127.0.0.1:8080/debug-loader.html
 #### 问题：CORS 错误
 
 **错误信息**：
-```
+```text
 Access to fetch at 'file:///...' from origin 'null' has been blocked by CORS policy
 ```
 

@@ -45,7 +45,7 @@ suggestedDist = max(suggestedDist, 1.0)
 
 ### 你的模型（quest3分解.glb）
 
-```
+```text
 模型尺寸: 5.0 单位
 相机距离: 3.2 单位
 FOV: 45°
@@ -69,7 +69,7 @@ FOV: 45°
 
 加载模型后会看到：
 
-```
+```text
 🧮 智能爆炸距离计算: {
   modelSize: "5.00",        ← 模型大小
   distToCamera: "3.20",     ← 到相机距离

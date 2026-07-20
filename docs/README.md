@@ -95,7 +95,7 @@ npx serve .
 npx vite
 ```
 
-然后打开 http://localhost:8080。
+然后打开 <http://localhost:8080>
 
 ## 📋 版本历史
 
@@ -227,7 +227,7 @@ npx vite
 
 ## 文件结构
 
-```
+```text
 quest3-exploded/
 ├── index.html              # 页面结构
 ├── style.css               # 界面样式
@@ -290,12 +290,12 @@ cat blender_output/test_output.txt
 blender --background --python blender_api_server.py -- --port 8000
 
 # 2. 远程控制
-curl -X POST http://localhost:8000/api/create \
+curl -X POST <http://localhost:8000/api/create> \
   -H "Content-Type: application/json" \
   -d '{"type":"cube","name":"MyCube","location":[0,0,0],"size":2.0}'
 
 # 3. 查看所有物体
-curl http://localhost:8000/api/objects
+curl <http://localhost:8000/api/objects>
 ```
 
 #### 方法 3：Quest 3 爆炸视图

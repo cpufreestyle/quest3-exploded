@@ -32,7 +32,7 @@ lsof -iTCP:9876 -sTCP:LISTEN -n -P
 
 期望结果（仅 Blender，无其它进程）：
 
-```
+```html
 COMMAND   PID   USER   ...  NAME
 Blender  <pid> a1-6   ...  TCP 127.0.0.1:9876 (LISTEN)
 ```

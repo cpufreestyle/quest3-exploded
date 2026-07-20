@@ -27,7 +27,7 @@
 
 ### 工作流程
 
-```
+```text
 你: "帮我创建一个红色立方体"
     ↓
 我: 生成 Python 脚本
@@ -80,7 +80,7 @@ python3 blender_watcher.py
 ```
 
 **监听器启动后会显示：**
-```
+```text
 ========================================
   Blender 文件监听自动执行器
 ========================================
@@ -122,7 +122,7 @@ print("✅ 蓝色球体创建成功！")
 **步骤 2：** 保存文件
 
 **步骤 3：** 观察自动执行
-```
+```text
 📝 检测到脚本变化: my_first_script.py
 🚀 正在 Blender 中执行: my_first_script.py
 📄 输出保存到: ./blender_output/my_first_script_output.txt
@@ -180,7 +180,7 @@ for i, part in enumerate(parts):
 
     # 结束位置（爆炸）
     scene.frame_set(100)
-    part.location = (i * 1.5, i * 0.3, i * 0.2)
+    part.location = (i *1.5, i* 0.3, i * 0.2)
     part.keyframe_insert(data_path="location", frame=100)
 
 print(f"✅ 创建了 {len(parts)} 个部件并设置爆炸动画")
@@ -195,7 +195,7 @@ print(f"✅ 创建了 {len(parts)} 个部件并设置爆炸动画")
 当 Blender 报错时，我可以：
 
 1. **分析错误日志**
-   ```
+```text
    KeyError: 'bpy_prop_collection[key]: key "Transmission" not found'
    ```
 
@@ -269,7 +269,7 @@ print(f"✅ 从配置创建了 {len(config['parts'])} 个部件")
 #### 1. 创建物体
 
 ```bash
-curl -X POST http://localhost:8000/api/create \
+curl -X POST <http://localhost:8000/api/create> \
   -H "Content-Type: application/json" \
   -d '{"type":"cube","name":"MyCube","location":[0,0,0],"size":2.0}'
 ```
@@ -277,7 +277,7 @@ curl -X POST http://localhost:8000/api/create \
 #### 2. 应用材质
 
 ```bash
-curl -X POST http://localhost:8000/api/material \
+curl -X POST <http://localhost:8000/api/material> \
   -H "Content-Type: application/json" \
   -d '{"name":"MyCube","color":[0.8,0.2,0.2,1.0],"metallic":0.3}'
 ```
@@ -285,7 +285,7 @@ curl -X POST http://localhost:8000/api/material \
 #### 3. 添加动画
 
 ```bash
-curl -X POST http://localhost:8000/api/animation \
+curl -X POST <http://localhost:8000/api/animation> \
   -H "Content-Type: application/json" \
   -d '{"object":"MyCube","property":"location","start_value":[0,0,0],"end_value":[5,0,0],"start_frame":1,"end_frame":100}'
 ```
@@ -293,7 +293,7 @@ curl -X POST http://localhost:8000/api/animation \
 #### 4. 查看所有物体
 
 ```bash
-curl http://localhost:8000/api/objects
+curl <http://localhost:8000/api/objects>
 ```
 
 ---
@@ -302,7 +302,7 @@ curl http://localhost:8000/api/objects
 
 ### 工作流程 1：开发调试
 
-```
+```text
 1. 你：在 Blender 中写 Python 脚本
 2. 我：监听文件变化
 3. 自动：在 Blender 中执行
@@ -312,7 +312,7 @@ curl http://localhost:8000/api/objects
 
 ### 工作流程 2：AI 辅助开发
 
-```
+```text
 1. 你："帮我创建一个 Quest 3 爆炸视图"
 2. 我：生成完整脚本
 3. 保存到: blender_scripts/quest3.py
@@ -322,7 +322,7 @@ curl http://localhost:8000/api/objects
 
 ### 工作流程 3：错误自动修复
 
-```
+```text
 1. Blender 报错: KeyError 'Transmission' not found
 2. 我：读取日志，分析错误
 3. 我：自动修复代码
@@ -362,7 +362,7 @@ BLENDER_PATH = "/Applications/Blender.app/Contents/MacOS/Blender"
 self.debounce_seconds = 2.0  # 改为 2 秒
 ```
 
-### Q4: 输出在哪里？
+### Q4: 输出在哪里
 
 **答案：** 所有输出保存到 `blender_output/<script_name>_output.txt`
 
@@ -402,7 +402,7 @@ tail -f blender_output/example_red_cube_output.txt
 
 ### 自动化流水线
 
-```
+```text
 用户请求
   ↓
 我生成 Blender Python 脚本

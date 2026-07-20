@@ -3,7 +3,7 @@
 ## 🔍 快速诊断
 
 **请先在手机上访问这个诊断页面**：
-```
+```text
 http://192.168.1.113:8080/webxr-diagnose.html
 ```
 
@@ -16,7 +16,7 @@ http://192.168.1.113:8080/webxr-diagnose.html
 ### 原因 1：❌ Chrome 版本太低
 
 **检测方法**：
-```
+```text
 设置 → 关于手机 → 版本信息 → Chrome 版本
 ```
 
@@ -34,7 +34,7 @@ http://192.168.1.113:8080/webxr-diagnose.html
 
 **问题**：
 - WebXR API **强制要求 HTTPS**
-- 本地 HTTP（http://192.168.1.113:8080）不支持
+- 本地 HTTP（<http://192.168.1.113:8080）不支持>
 - **这是最常见的原因！**
 
 **检测方法**：
@@ -46,7 +46,7 @@ http://192.168.1.113:8080/webxr-diagnose.html
 #### **方案 A：使用 Vercel 在线版本（推荐）**
 
 直接访问（已自动 HTTPS）：
-```
+```text
 https://quest3-exploded.vercel.app
 ```
 
@@ -65,7 +65,7 @@ https://quest3-exploded.vercel.app
    # 启动 HTTPS 隧道
    ngrok http 8080
 
-   # 会生成类似 https://xxxx-xx-xx-xx-xx.ngrok-free.app 的地址
+   # 会生成类似 <https://xxxx-xx-xx-xx-xx.ngrok-free.app> 的地址
    # 在手机上访问这个 HTTPS 地址
    ```
 
@@ -78,14 +78,14 @@ https://quest3-exploded.vercel.app
 #### **方案 C：使用 Chrome 标志（不推荐）**
 
 1. 在 Chrome 地址栏输入：
-   ```
+```text
    chrome://flags/#unsafely-treat-insecure-origin-as-secure
    ```
 
 2. 启用该标志
 
 3. 添加你的本地地址：
-   ```
+```text
    http://192.168.1.113:8080
    ```
 
@@ -121,7 +121,7 @@ https://quest3-exploded.vercel.app
 
 **检测方法**：
 1. 在 Chrome 地址栏输入：
-   ```
+```text
    chrome://flags/#webxr
    ```
 
@@ -142,7 +142,7 @@ https://quest3-exploded.vercel.app
 **要求**：Android 7.0 (API 24)+
 
 **检测方法**：
-```
+```text
 设置 → 关于手机 → 版本信息 → Android 版本
 ```
 
@@ -157,7 +157,7 @@ https://quest3-exploded.vercel.app
 ### **第 1 步：运行诊断**
 
 在手机上访问：
-```
+```text
 http://192.168.1.113:8080/webxr-diagnose.html
 ```
 
@@ -169,19 +169,19 @@ http://192.168.1.113:8080/webxr-diagnose.html
 
 #### ✅ 如果诊断通过
 直接访问主程序：
-```
+```text
 https://quest3-exploded.vercel.app
 ```
 
 #### ❌ 如果是 HTTPS 问题
 使用 Vercel：
-```
+```text
 https://quest3-exploded.vercel.app
 ```
 
 #### ❌ 如果是 Chrome 版本问题
 更新 Chrome：
-```
+```text
 Google Play → Chrome → 更新
 ```
 
@@ -195,7 +195,7 @@ Google Play → Chrome → 更新
 最简单的方法，**无需配置**：
 
 1. **打开 Chrome**
-2. **访问**：https://quest3-exploded.vercel.app
+2. **访问**：<https://quest3-exploded.vercel.app>
 3. **点击**："📱 AR 预览"
 4. **授予权限**
 5. **扫描环境**
@@ -207,7 +207,7 @@ Google Play → Chrome → 更新
 
 ### 在 Vercel 上测试（5 分钟）
 
-```
+```text
 1. 手机打开 Chrome
    ↓
 2. 访问 https://quest3-exploded.vercel.app
@@ -236,14 +236,14 @@ Google Play → Chrome → 更新
 ### 在 Chrome 中查看控制台
 
 1. **启用远程调试**（Android）
-   ```
+```text
    设置 → 关于手机 → 连续点击版本号（开启开发者选项）
    连接 USB 到电脑
    电脑打开 Chrome → chrome://inspect
    ```
 
 2. **查看控制台**
-   ```
+```text
    应该看到：
    ✅ WebXR AR supported: true
 
@@ -326,7 +326,7 @@ console.log('UA:', navigator.userAgent);
 **如果看完还是不知道怎么办，直接这么做**：
 
 1. **在手机上打开 Chrome**
-2. **访问**：https://quest3-exploded.vercel.app
+2. **访问**：<https://quest3-exploded.vercel.app>
 3. **点击 "📱 AR 预览"**
 4. **授予权限**
 5. **扫描环境**
@@ -337,6 +337,6 @@ console.log('UA:', navigator.userAgent);
 
 **准备好测试了吗？请先运行诊断工具，然后告诉我结果！** 🚀
 
-**诊断地址**：http://192.168.1.113:8080/webxr-diagnose.html
+**诊断地址**：<http://192.168.1.113:8080/webxr-diagnose.html>
 
-**Vercel 地址**：https://quest3-exploded.vercel.app
+**Vercel 地址**：<https://quest3-exploded.vercel.app>

@@ -260,22 +260,22 @@ load_explode_config("quest3_explode_config.json")
 
 ## 🐛 常见问题
 
-### Q: 部件太多，卡顿怎么办？
+### Q: 部件太多，卡顿怎么办
 
 **A**: 降低视图质量：
 - 点击 **Viewport Shading → Solid**
 - 减少细分段数
 - 使用 **Limit Selection to Visible**
 
-### Q: 如何只渲染爆炸动画（不包含旋转）？
+### Q: 如何只渲染爆炸动画（不包含旋转）
 
 **A**: 删除或注释掉 `setup_rotation_animation()` 调用
 
-### Q: 如何调整爆炸方向？
+### Q: 如何调整爆炸方向
 
 **A**: 修改 `quest3_explode_config.json` 中的 `explode_pos`
 
-### Q: 如何导出为 GLB/GLTF？
+### Q: 如何导出为 GLB/GLTF
 
 **A**:
 ```python
@@ -289,9 +289,9 @@ bpy.ops.export_scene.gltf(
 
 ## 📚 相关文档
 
-- **Blender Python API**: https://docs.blender.org/api/current/
-- **动画指南**: https://docs.blender.org/manual/en/latest/animation/
-- **渲染设置**: https://docs.blender.org/manual/en/latest/render/
+- **Blender Python API**: <https://docs.blender.org/api/current/>
+- **动画指南**: <https://docs.blender.org/manual/en/latest/animation/>
+- **渲染设置**: <https://docs.blender.org/manual/en/latest/render/>
 
 ---
 

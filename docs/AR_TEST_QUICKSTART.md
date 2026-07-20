@@ -4,7 +4,7 @@
 
 **HTTP 服务器**：✅ 运行中
 **本地 IP**：192.168.1.113:8080
-**测试页面**：http://192.168.1.113:8080/test-ar.html
+**测试页面**：<http://192.168.1.113:8080/test-ar.html>
 
 ---
 
@@ -22,7 +22,7 @@
 1. **确保手机和电脑在同一 WiFi**
 
 2. **在手机上打开浏览器访问**：
-   ```
+```text
    http://192.168.1.113:8080/test-ar.html
    ```
 
@@ -48,7 +48,7 @@
 
 如果本地网络测试失败，可以使用 Vercel 在线版本：
 
-**地址**：https://quest3-exploded.vercel.app
+**地址**：<https://quest3-exploded.vercel.app>
 
 **注意**：Vercel 自动提供 HTTPS，符合 WebXR 安全要求。
 
@@ -84,10 +84,10 @@
 
 ### Q1: 本地 HTTP 无法测试 AR
 
-**原因**：WebXR 要求 HTTPS，本地 HTTP（http://192.168.1.113:8080）不满足安全要求。
+**原因**：WebXR 要求 HTTPS，本地 HTTP（<http://192.168.1.113:8080）不满足安全要求>
 
 **解决**：
-1. **使用 Vercel 在线版本**：https://quest3-exploded.vercel.app
+1. **使用 Vercel 在线版本**：<https://quest3-exploded.vercel.app>
 2. **或配置本地 HTTPS**（复杂，推荐使用 Vercel）
 
 **预期结果**：test-ar.html 会显示 HTTPS 检测失败，这是正常的。
@@ -152,7 +152,7 @@
 
 测试完成后，请记录：
 
-```
+```text
 ✅/❌ 页面加载
 ✅/❌ AR 按钮显示
 ✅/❌ 相机权限
@@ -175,14 +175,14 @@
 ### 本地测试（5 分钟）
 
 1. **手机连接到同一 WiFi**
-2. **打开** http://192.168.1.113:8080/test-ar.html
+2. **打开** <http://192.168.1.113:8080/test-ar.html>
 3. **查看测试结果**
 4. **点击"打开主程序"**
 5. **测试 AR 模式**
 
 ### 在线测试（推荐）
 
-1. **打开** https://quest3-exploded.vercel.app
+1. **打开** <https://quest3-exploded.vercel.app>
 2. **点击"📱 AR 预览"**
 3. **授予权限**
 4. **扫描环境**
@@ -200,6 +200,6 @@
 
 **准备好测试了吗？** 🚀
 
-**本地测试**：http://192.168.1.113:8080/test-ar.html
+**本地测试**：<http://192.168.1.113:8080/test-ar.html>
 
-**在线测试**：https://quest3-exploded.vercel.app
+**在线测试**：<https://quest3-exploded.vercel.app>

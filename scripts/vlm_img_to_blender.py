@@ -34,11 +34,12 @@ DEFAULT_IMG = os.path.join(ROOT, "external", "TripoSR", "examples", "hamburger.p
 EXPORT_PATH = "/tmp/vlm_img_to_3d.glb"
 
 # 支持的视觉模型。OpenAI 兼容走 /chat/completions；anthropic 走原生 Messages API。
+# default_model：未显式指定模型时的回退（避免 anthropic/openai 误用 stepfun 的默认模型）。
 VLM_PROVIDERS = {
-    "stepfun": {"base_url": "https://api.stepfun.com/v1", "cfg_key": "stepfun", "kind": "openai"},
-    "kimi": {"base_url": "https://api.moonshot.cn/v1", "cfg_key": "kimi", "kind": "openai"},
-    "anthropic": {"base_url": "https://api.anthropic.com/v1", "cfg_key": "anthropic", "kind": "anthropic"},
-    "openai": {"base_url": "https://api.openai.com/v1", "cfg_key": "openai", "kind": "openai"},
+    "stepfun": {"base_url": "https://api.stepfun.com/v1", "cfg_key": "stepfun", "kind": "openai", "default_model": "step-3.7-flash"},
+    "kimi": {"base_url": "https://api.moonshot.cn/v1", "cfg_key": "kimi", "kind": "openai", "default_model": "kimi-k3"},
+    "anthropic": {"base_url": "https://api.anthropic.com/v1", "cfg_key": "anthropic", "kind": "anthropic", "default_model": "claude-3-sonnet-20240229"},
+    "openai": {"base_url": "https://api.openai.com/v1", "cfg_key": "openai", "kind": "openai", "default_model": "gpt-4o"},
 }
 
 MAX_RETRIES = 4
@@ -216,7 +217,7 @@ def run():
     if not key or key == "***":
         print(f"ERROR: 未配置 {cfg_key} 的 API Key，请在 ai-config.json 的 {cfg_key}.key 填入")
         sys.exit(2)
-    model = args.model or cfg_model or "step-3.7-flash"
+    model = args.model or cfg_model or VLM_PROVIDERS[args.provider]["default_model"]
     base_url = VLM_PROVIDERS[args.provider]["base_url"]
 
     print(f"VLM provider: {args.provider}")
@@ -269,7 +270,9 @@ def run():
             print(f"  Blender 输出: {out_preview[:300]}")
         break
 
-    if not (isinstance(result, dict) and result.get("status") == "error"):
+    # 仅当本次成功在 Blender 中执行过代码（result 非 None）才导出，
+    # 避免 VLM 调用失败时把 Blender 中残留的旧 GLM_VLM_* 对象误导出。
+    if result is not None:
         # 导出 GLM_VLM_* 为 GLB
         print("\n导出 GLB...")
         try:
@@ -287,7 +290,7 @@ def run():
         f.write(last_code or "")
 
     print("\n" + "=" * 50)
-    if result and not (isinstance(result, dict) and result.get("status") == "error"):
+    if result is not None:
         fixed = max(0, attempt - 1)
         print(f"完成：经 {attempt} 次迭代（含 {fixed} 次自动修复）成功生成 3D 模型")
         print(f"GLB 输出: {EXPORT_PATH}")

@@ -178,7 +178,7 @@ arRenderer.setAnimationLoop((timestamp, frame) => {
 
 ### 在线测试
 
-**访问地址**：https://quest3-exploded.vercel.app
+**访问地址**：<https://quest3-exploded.vercel.app>
 
 **Android 测试**：
 1. 用 Chrome 打开网站
@@ -266,7 +266,7 @@ arRenderer.setAnimationLoop((timestamp, frame) => {
 
 ### AR 按钮样式
 
-```
+```text
 ┌─────────────────────────┐
 │ ⏮️ 上一步  ⏭️ 下一步    │
 │ 🔄 重置  💥 爆炸视图    │
@@ -277,7 +277,7 @@ arRenderer.setAnimationLoop((timestamp, frame) => {
 
 ### AR 模式界面
 
-```
+```text
 移动手机扫描环境...
 ┌─────────────────────────┐
 │ 🚪 退出 AR              │
@@ -418,11 +418,11 @@ arRenderer.setAnimationLoop((timestamp, frame) => {
 
 **🎊 AR 功能已上线！在支持的移动设备上试试吧！**
 
-**在线地址**：https://quest3-exploded.vercel.app
+**在线地址**：<https://quest3-exploded.vercel.app>
 
 **注意**：必须使用 HTTPS（Vercel 自动支持）
 
-**GitHub**：https://github.com/cpufreestyle/blender-auto-3d-explode
+**GitHub**：<https://github.com/cpufreestyle/blender-auto-3d-explode>
 
 ---
 

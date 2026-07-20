@@ -9,7 +9,7 @@
 #### ✨ 新功能
 
 - **图片转 3D 新增 VLM 视觉模型路线** — 视觉模型"看"图 → 生成 Blender Python 代码 → 沙箱执行 + 自动修复循环 → 导出 GLB（程序化近似重建，非高保真纹理网格）。
-  - 支持模型：**StepFun step-3.7-flash** / **Kimi kimi-k3** / **Claude claude-3-sonnet**，在 `ai-config.html` 的「图片转 3D → 🤖 AI 视觉模型（VLM）」下拉切换。
+  - 支持模型：**StepFun step-3.7-flash**/**Kimi kimi-k3**/**Claude claude-3-sonnet**，在 `ai-config.html` 的「图片转 3D → 🤖 AI 视觉模型（VLM）」下拉切换。
   - `server.js`：`handleImageTo3D` 新增 `vlm` 分支（`runVLMImageTo3D`）；`GET /api/ai-config` 响应补充 `vlm` 字段。
   - `scripts/vlm_img_to_blender.py`：多 provider 支持（OpenAI 兼容走 `/chat/completions`，Claude 走原生 Messages API），含沙箱自动修复（最多 4 次迭代）与 GLB 导出。
 
@@ -32,7 +32,7 @@
 - **智能提示词匹配系统** — 权重算法 + 关键词冲突解决
   - PROMPT_TEMPLATES 权重系统（超级英雄 100 > 角色 80 > 物体 70 > 泛角色 30）
   - 解决"超人"被误识别为"女人"的问题
-  
+
 - **超级英雄生成器** — 5位英雄完整实现
   - 超人：蓝色紧身衣+红色披风+黄色S胸章
   - 蝙蝠侠：黑色战甲+蝙蝠披风+蝙蝠标志
@@ -71,7 +71,7 @@
   - 可折叠面板（`<details>` 元素）
   - CSS 变量间距系统（--sp-1 到 --sp-5）
   - 统一组件类名（.chip/.status-box）
-  
+
 - **步骤控制修复**
   - 修复：爆炸视图模式下上一步/下一步/重置按钮无效
   - 新增：exitMouseControl() 函数同步 mouseFactor 到 currentStep
@@ -85,7 +85,7 @@
 
 ### 📊 统计
 
-```
+```text
 新功能: 4 大模块（提示词系统/超级英雄/乐高/渲染特效）
 Bug 修复: 3 个（步骤控制/MCP/滑块计算）
 代码变更: +800/-200 行
@@ -125,7 +125,7 @@ Bug 修复: 3 个（步骤控制/MCP/滑块计算）
 
 ### 📊 统计
 
-```
+```text
 新功能: 5 项
 Bug 修复: 2 个
 安全加固: 2 项
@@ -172,7 +172,7 @@ Bug 修复: 2 个
 
 ### 📊 统计
 
-```
+```text
 Bug 修复: 7 个（严重 3 + 中等 4）
 代码变更: +69/-54 行
 影响文件: 1 个（main.js）
@@ -321,7 +321,7 @@ Bug 修复: 7 个（严重 3 + 中等 4）
 
 ### 📊 统计
 
-```
+```text
 新增核心脚本: 4 个 (2000+ 行)
 新增文档: 4 个 (1500+ 行)
 新增测试工具: 1 个
@@ -454,7 +454,7 @@ Bug 修复: 6 个 Blender API 兼容性问题
 
 ### 📊 统计
 
-```
+```text
 新增文档: 6 个
 新增工具: 6 个
 Bug 修复: 7 个
@@ -583,7 +583,7 @@ Bug 修复: 7 个
 
 ### 📊 统计
 
-```
+```text
 新增文档: 6 个
 新增工具: 6 个
 Bug 修复: 7 个
@@ -682,4 +682,4 @@ Bug 修复: 7 个
 **最后更新**：2026-07-04
 **维护者**：Claude Code
 **项目**：Quest 3 爆炸拆解 3D 视图
-**仓库**：https://github.com/cpufreestyle/blender-auto-3d-explode
+**仓库**：<https://github.com/cpufreestyle/blender-auto-3d-explode>
